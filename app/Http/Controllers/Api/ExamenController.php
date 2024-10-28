@@ -9,6 +9,7 @@ use App\Models\Materia;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 
 class ExamenController extends Controller
 {
@@ -208,14 +209,49 @@ class ExamenController extends Controller
 
         try {
             // Obtener el examen
-            $examen = Examen::findOrFail($request->examen_id);
+            $examen = Examen::with('preguntas.opciones')->findOrFail($request->examen_id);
 
-            // Verificar si ya está asignado el examen a este grado
+            // Verificar si el examen ya está asignado al grado
             if ($examen->grados()->where('grado_id', $request->grado_id)->exists()) {
                 return response()->json([
                     'status' => 0,
                     'msg' => 'El examen ya está asignado a este grado.',
                 ], 409); // Conflict
+            }
+
+            // Validación de la suma de valores de las preguntas
+            $valorTotal = $examen->preguntas->sum('valor');
+            if ($valorTotal !== 100) {
+                return response()->json([
+                    'status' => 0,
+                    'msg' => 'La suma de los valores de las preguntas debe ser 100%.',
+                ], 422);
+            }
+
+            // Validación de cada pregunta
+            foreach ($examen->preguntas as $pregunta) {
+                $opciones = $pregunta->opciones;
+
+                // Verificar que cada pregunta tenga al menos dos opciones
+                if ($opciones->count() < 2) {
+
+                    $resumen_pregunta = Str::limit($pregunta->contenido, 30);
+                    return response()->json([
+                        'status' => 0,
+                        'msg' => "La pregunta '{$resumen_pregunta}' debe tener al menos dos opciones.",
+                    ], 422);
+                }
+
+                // Verificar que haya al menos una opción correcta
+                $correcta = $opciones->where('es_correcta', true)->count();
+                if ($correcta < 1) {
+
+                    $resumen_pregunta = Str::limit($pregunta->contenido, 30);
+                    return response()->json([
+                        'status' => 0,
+                        'msg' => "La pregunta '{$resumen_pregunta }' debe tener al menos una opción correcta.",
+                    ], 422);
+                }
             }
 
             // Asignar el examen al grado
