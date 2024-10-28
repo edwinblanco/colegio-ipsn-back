@@ -8,6 +8,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use App\Models\Tipo_documento;
+use App\Models\Grado;
 use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable
@@ -42,6 +43,12 @@ class User extends Authenticatable
     public function examenes()
     {
         return $this->hasMany(Examen::class, 'profesor_id');
+    }
+
+    // Relación con grados
+    public function grado()
+    {
+        return $this->belongsTo(Grado::class, 'grado_id');
     }
 
     // relacion con tipo de documento

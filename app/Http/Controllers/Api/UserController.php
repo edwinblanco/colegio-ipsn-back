@@ -99,7 +99,7 @@ class UserController extends Controller
         ]);
 
         // Buscar el usuario por numero_documento
-        $user = User::where('numero_documento', $request->numero_documento)->first();
+        $user = User::where('numero_documento', $request->numero_documento)->with('grado')->first();
 
         // Verificar si el usuario existe
         if (!$user) {

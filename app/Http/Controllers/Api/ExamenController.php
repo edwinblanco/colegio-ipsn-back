@@ -8,6 +8,7 @@ use App\Models\Examen;
 use App\Models\Materia;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Validator;
 
 class ExamenController extends Controller
 {
@@ -184,6 +185,115 @@ class ExamenController extends Controller
             return response()->json([
                 'status' => 0,
                 'msg' => 'Error al eliminar el examen.',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function asignar_examen_a_grado(Request $request)
+    {
+        // Validación de entrada
+        $validator = Validator::make($request->all(), [
+            'examen_id' => 'required|exists:examenes,id',
+            'grado_id' => 'required|exists:grados,id'
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'status' => 0,
+                'msg' => 'Validación fallida.',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        try {
+            // Obtener el examen
+            $examen = Examen::findOrFail($request->examen_id);
+
+            // Verificar si ya está asignado el examen a este grado
+            if ($examen->grados()->where('grado_id', $request->grado_id)->exists()) {
+                return response()->json([
+                    'status' => 0,
+                    'msg' => 'El examen ya está asignado a este grado.',
+                ], 409); // Conflict
+            }
+
+            // Asignar el examen al grado
+            $examen->grados()->attach($request->grado_id, ['fecha_asignacion' => now()]);
+
+            return response()->json([
+                'status' => 1,
+                'msg' => 'Examen asignado al grado exitosamente.',
+                'data' => $examen,
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 0,
+                'msg' => 'Error al asignar el examen.',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function grados_asignados($examen_id)
+    {
+        // Verificar si el examen existe
+        $examen = Examen::find($examen_id);
+        if (!$examen) {
+            return response()->json([
+                'status' => 0,
+                'msg' => 'Examen no encontrado.',
+            ], 404);
+        }
+
+        // Obtener los grados asignados al examen
+        $grados = $examen->grados; // Asegúrate de tener la relación definida en el modelo Examen
+
+        if ($grados->isEmpty()) {
+            return response()->json([
+                'status' => 0,
+                'msg' => 'No hay grados asignados a este examen.',
+            ], 200);
+        }
+
+        return response()->json([
+            'status' => 1,
+            'msg' => 'Grados encontrados para el examen.',
+            'data' => $grados,
+        ], 200);
+    }
+
+    public function eliminar_asignacion(Request $request)
+    {
+        // Validación de entrada
+        $validator = Validator::make($request->all(), [
+            'examen_id' => 'required|exists:examenes,id',
+            'grado_id' => 'required|exists:grados,id'
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'status' => 0,
+                'msg' => 'Validación fallida.',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        try {
+            // Obtener el examen
+            $examen = Examen::findOrFail($request->examen_id);
+
+            // Eliminar la asignación del examen al grado
+            $examen->grados()->detach($request->grado_id);
+
+            return response()->json([
+                'status' => 1,
+                'msg' => 'Asignación eliminada exitosamente.',
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 0,
+                'msg' => 'Error al eliminar la asignación.',
                 'error' => $e->getMessage(),
             ], 500);
         }

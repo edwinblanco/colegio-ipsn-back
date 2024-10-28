@@ -5,7 +5,7 @@ use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\MateriaController;
 use App\Http\Controllers\Api\OpcionController;
 use App\Http\Controllers\Api\PreguntaController;
-use App\Models\Examen;
+use App\Http\Controllers\Api\GradoController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -33,6 +33,10 @@ Route::group(['middleware' => ["auth:sanctum"]], function(){
 
     // Aplicar el middleware para verificar el rol
     Route::post('crear-examen', [ExamenController::class, 'store'])->middleware('role:profesor');
+    Route::get('ver-grado-asignado/{examen_id}', [ExamenController::class, 'grados_asignados'])->middleware('role:profesor');
+    Route::post('asignar-examen-grado', [ExamenController::class, 'asignar_examen_a_grado'])->middleware('role:profesor');
+    Route::delete('eliminar-asignacion', [ExamenController::class, 'eliminar_asignacion'])->middleware('role:profesor');
+
     Route::post('crear-pregunta', [PreguntaController::class, 'store'])->middleware('role:profesor');
     Route::get('ver-preguntas-por-examen/{examen_id}', [PreguntaController::class, 'ver_preguntas_por_examen'])->middleware('role:profesor');
     Route::post('editar-pregunta', [PreguntaController::class, 'update'])->middleware('role:profesor');
@@ -41,6 +45,9 @@ Route::group(['middleware' => ["auth:sanctum"]], function(){
     Route::post('crear-opcion', [OpcionController::class, 'store'])->middleware('role:profesor');
     Route::post('actualizar-opcion', [OpcionController::class, 'update'])->middleware('role:profesor');
     Route::delete('eliminar-opcion/{id}', [OpcionController::class, 'destroy'])->middleware('role:profesor');
+
+    //Grados
+    Route::get('ver-grados', [GradoController::class, 'index'])->middleware('role:profesor');
 
     Route::get('examenes-materia/{materiaId}', [ExamenController::class, 'show'])->middleware('role:profesor,estudiante');
 });

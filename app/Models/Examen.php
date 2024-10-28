@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use App\Models\Grado;
 
 class Examen extends Model
 {
@@ -30,6 +31,12 @@ class Examen extends Model
     public function profesor()
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function grados()
+    {
+        return $this->belongsToMany(Grado::class, 'examen_grado', 'examen_id', 'grado_id')->withPivot('fecha_asignacion') // Si necesitas acceder a la fecha de asignación
+        ->withTimestamps();;
     }
 
 }
