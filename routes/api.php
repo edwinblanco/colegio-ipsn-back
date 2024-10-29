@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\MateriaController;
 use App\Http\Controllers\Api\OpcionController;
 use App\Http\Controllers\Api\PreguntaController;
 use App\Http\Controllers\Api\GradoController;
+use App\Http\Controllers\Api\RespuestaController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -29,13 +30,15 @@ Route::group(['middleware' => ["auth:sanctum"]], function(){
     Route::get('logout', [UserController::class, 'logout']);
     Route::get('validar-token', [UserController::class, 'validar_token']);
 
-    Route::get('materias-por-profesor/{id}', [MateriaController::class, 'materias_por_profesor']);
+    Route::get('materias', [MateriaController::class, 'index'])->middleware('role:estudiante');
+    Route::get('materias-por-profesor/{id}', [MateriaController::class, 'materias_por_profesor'])->middleware('role:profesor');
 
     // Aplicar el middleware para verificar el rol
     Route::post('crear-examen', [ExamenController::class, 'store'])->middleware('role:profesor');
     Route::get('ver-grado-asignado/{examen_id}', [ExamenController::class, 'grados_asignados'])->middleware('role:profesor');
     Route::post('asignar-examen-grado', [ExamenController::class, 'asignar_examen_a_grado'])->middleware('role:profesor');
     Route::delete('eliminar-asignacion', [ExamenController::class, 'eliminar_asignacion'])->middleware('role:profesor');
+    Route::get('obtener-pregunta/{examenId}/{preguntaIndex}', [ExamenController::class, 'obtener_pregunta'])->middleware('role:estudiante');
 
     Route::post('crear-pregunta', [PreguntaController::class, 'store'])->middleware('role:profesor');
     Route::get('ver-preguntas-por-examen/{examen_id}', [PreguntaController::class, 'ver_preguntas_por_examen'])->middleware('role:profesor');
@@ -50,6 +53,10 @@ Route::group(['middleware' => ["auth:sanctum"]], function(){
     Route::get('ver-grados', [GradoController::class, 'index'])->middleware('role:profesor');
 
     Route::get('examenes-materia/{materiaId}', [ExamenController::class, 'show'])->middleware('role:profesor,estudiante');
+    Route::get('examenes-materia-estudiante/{materiaId}', [ExamenController::class, 'ver_examenes_estudiante'])->middleware('role:estudiante');
+    Route::get('obtener-examen-preguntas-opciones/{examenId}', [ExamenController::class, 'obtener_examen_con_preguntas_y_opciones'])->middleware('role:estudiante');
+
+    Route::post('guardar-respuesta', [RespuestaController::class, 'guardar_respuesta'])->middleware('role:estudiante');
 });
 
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {

@@ -26,4 +26,9 @@ class Pregunta extends Model
     {
         return $this->hasMany(Opcion::class);
     }
+
+    public function respuestas()
+    {
+        return $this->hasMany(Respuesta::class);
+    }
 }

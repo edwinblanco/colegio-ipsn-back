@@ -38,6 +38,11 @@ class Examen extends Model
         return $this->hasMany(Pregunta::class);
     }
 
+    public function respuestas()
+    {
+        return $this->hasMany(Respuesta::class);
+    }
+
     public function grados()
     {
         return $this->belongsToMany(Grado::class, 'examen_grado', 'examen_id', 'grado_id')->withPivot('fecha_asignacion') // Si necesitas acceder a la fecha de asignación

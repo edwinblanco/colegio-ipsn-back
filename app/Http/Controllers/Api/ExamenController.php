@@ -10,6 +10,7 @@ use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
+use App\Models\Pregunta;
 
 class ExamenController extends Controller
 {
@@ -117,6 +118,91 @@ class ExamenController extends Controller
                 'error' => $e->getMessage(),
             ], 500);
         }
+    }
+
+    public function ver_examenes_estudiante(Request $request, $materiaId)
+    {
+        try {
+            // Obtener el usuario autenticado
+            $user = Auth::user();
+
+            // Obtener el grado del usuario autenticado
+            $gradoId = $user->grado ? $user->grado->id : null;
+
+            // Verificar si el usuario tiene un grado asignado
+            if (!$gradoId) {
+                return response()->json([
+                    'status' => 0,
+                    'msg' => 'El estudiante no tiene un grado asignado.',
+                ], 404);
+            }
+
+            // Obtener exámenes que correspondan a la materia y al grado del usuario
+            $examenes = Examen::where('materia_id', $materiaId)
+                ->whereHas('grados', function ($query) use ($gradoId) {
+                    $query->where('grado_id', $gradoId);
+                })->get();
+
+            // Retornar los exámenes encontrados
+            return response()->json([
+                'status' => 1,
+                'msg' => 'Exámenes recuperados con éxito.',
+                'data' => $examenes,
+            ], 200);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 0,
+                'msg' => 'Error al recuperar los exámenes asociados.',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function obtener_examen_con_preguntas_y_opciones($examenId)
+    {
+        try {
+            // Cargar el examen junto con las preguntas y sus opciones
+            $examen = Examen::with(['preguntas.opciones'])
+                ->findOrFail($examenId);
+
+            return response()->json([
+                'status' => 1,
+                'msg' => 'Examen recuperado con éxito.',
+                'data' => $examen,
+            ], 200);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 0,
+                'msg' => 'Error al recuperar el examen.',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function obtener_pregunta($examenId, $preguntaIndex) {
+        $pregunta = Pregunta::where('examen_id', $examenId)
+                            ->orderBy('id') // Asegúrate de tener un orden correcto
+                            ->skip($preguntaIndex)
+                            ->take(1)
+                            ->with('opciones') // Cargar las opciones de la pregunta
+                            ->first();
+
+        if ($pregunta) {
+            return response()->json([
+                'status' => 1,
+                'msg' => 'Pregunta encontrada',
+                'data' => $pregunta,
+            ], 200);
+        }
+
+        return response()->json([
+            'status' => 1,
+            'msg' => 'Pregunta no encontrada',
+            'data' => [],
+        ], 404);
+
     }
 
     // Mostrar el formulario para editar un examen
@@ -243,7 +329,7 @@ class ExamenController extends Controller
                 }
 
                 // Verificar que haya al menos una opción correcta
-                $correcta = $opciones->where('es_correcta', true)->count();
+                $correcta = $opciones->where('correcta', true)->count();
                 if ($correcta < 1) {
 
                     $resumen_pregunta = Str::limit($pregunta->contenido, 30);

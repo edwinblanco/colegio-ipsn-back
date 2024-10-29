@@ -45,6 +45,11 @@ class User extends Authenticatable
         return $this->hasMany(Examen::class, 'profesor_id');
     }
 
+    public function respuestas()
+    {
+        return $this->hasMany(Respuesta::class, 'estudiante_id');
+    }
+    
     // Relación con grados
     public function grado()
     {
@@ -56,5 +61,6 @@ class User extends Authenticatable
     {
         return $this->belongsTo(Tipo_documento::class, 'tipo_documento_id');
     }
+
 
 }
