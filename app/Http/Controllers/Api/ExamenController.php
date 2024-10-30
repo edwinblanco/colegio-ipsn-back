@@ -6,11 +6,13 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Examen;
 use App\Models\Materia;
+use App\Models\Opcion;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use App\Models\Pregunta;
+use App\Models\Respuesta;
 
 class ExamenController extends Controller
 {
@@ -181,6 +183,46 @@ class ExamenController extends Controller
         }
     }
 
+    public function obtener_examen_con_preguntas($examenId)
+    {
+        try {
+            // Cargar el examen junto con las preguntas y sus opciones
+            $examen = Examen::with(['preguntas.opciones'])->findOrFail($examenId);
+
+            // Obtener el ID del usuario autenticado
+            $user_id = Auth::id();
+
+            // Obtener las respuestas del usuario para este examen
+            $respuestasUsuario = Respuesta::where('examen_id', $examenId)
+                                           ->where('estudiante_id', $user_id)
+                                           ->pluck('pregunta_id'); // Obtener solo los IDs de las preguntas respondidas
+
+            // Agregar un atributo para verificar si la pregunta tiene respuesta
+            foreach ($examen->preguntas as $pregunta) {
+                $pregunta->tiene_respuesta = $respuestasUsuario->contains($pregunta->id);
+
+                // Ocultar el campo 'correcta' en las opciones de cada pregunta
+                foreach ($pregunta->opciones as $opcion) {
+                    $opcion->makeHidden(['correcta']); // Asegúrate de que 'correcta' sea el nombre del campo que deseas ocultar
+                }
+            }
+
+            return response()->json([
+                'status' => 1,
+                'msg' => 'Examen recuperado con éxito.',
+                'data' => $examen,
+            ], 200);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 0,
+                'msg' => 'Error al recuperar el examen.',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+
     public function obtener_pregunta($examenId, $preguntaIndex) {
         $pregunta = Pregunta::where('examen_id', $examenId)
                             ->orderBy('id') // Asegúrate de tener un orden correcto
@@ -190,19 +232,37 @@ class ExamenController extends Controller
                             ->first();
 
         if ($pregunta) {
+            $user_id = Auth::id();
+            $opcionesIds = Opcion::where('pregunta_id', $pregunta->id)->pluck('id'); // Obtener IDs de las opciones
+
+            // verificar si ya tiene una respuesta dicha pregunta
+            $respuesta = Respuesta::whereIn('respuesta_id', $opcionesIds)
+                                  ->where('estudiante_id', $user_id)
+                                  ->first();
+
+            // Contar el total de preguntas del examen
+            $totalPreguntas = Pregunta::where('examen_id', $examenId)->count();
+
+            // Contar las respuestas del usuario para el examen
+            $totalRespuestas = Respuesta::where('examen_id',  $examenId)
+                                        ->where('estudiante_id', $user_id)
+                                        ->distinct('pregunta_id')
+                                        ->count('pregunta_id');
+
             return response()->json([
                 'status' => 1,
                 'msg' => 'Pregunta encontrada',
                 'data' => $pregunta,
+                'resp' => $respuesta,
+                'examen_completado' => $totalRespuestas === $totalPreguntas
             ], 200);
         }
 
         return response()->json([
-            'status' => 1,
+            'status' => 0,
             'msg' => 'Pregunta no encontrada',
             'data' => [],
         ], 404);
-
     }
 
     // Mostrar el formulario para editar un examen

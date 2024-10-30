@@ -15,11 +15,19 @@ class RespuestaController extends Controller
     {
         $request->validate([
             'pregunta_id' => 'required|exists:preguntas,id',
-            'respuesta_id' => 'required|exists:opciones,id',
+            //'respuesta_id' => 'required|exists:opciones,id',
             'examen_id' => 'required|exists:examenes,id',
         ]);
 
         try {
+
+            if(!$request->respuesta_id){
+                return response()->json([
+                    'status' => 1,
+                    'msg' => 'Sin guardar ni calificar',
+                ], 200);
+            }
+
             $estudiante_id = Auth::id();
 
             // Guarda o actualiza la respuesta en la base de datos
@@ -48,9 +56,19 @@ class RespuestaController extends Controller
             $respuesta->calificacion = $calificacion;
             $respuesta->save();
 
+            // Contar el total de preguntas del examen
+            $totalPreguntas = Pregunta::where('examen_id', $request->examen_id)->count();
+
+            // Contar las respuestas del usuario para el examen
+            $totalRespuestas = Respuesta::where('examen_id', $request->examen_id)
+                                        ->where('estudiante_id', $estudiante_id)
+                                        ->distinct('pregunta_id')
+                                        ->count('pregunta_id');
+
             return response()->json([
                 'status' => 1,
                 'msg' => 'Respuesta guardada y calificada con éxito.',
+                'examen_completado' => $totalRespuestas === $totalPreguntas
             ], 200);
 
         } catch (\Exception $e) {
