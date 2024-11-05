@@ -31,4 +31,9 @@ class Pregunta extends Model
     {
         return $this->hasMany(Respuesta::class);
     }
+
+    public function imagenes()
+    {
+        return $this->hasMany(ImagenPregunta::class, 'id_pregunta');
+    }
 }

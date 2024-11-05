@@ -139,17 +139,40 @@ class ExamenController extends Controller
                 ], 404);
             }
 
-            // Obtener exámenes que correspondan a la materia y al grado del usuario
+            // Obtener exámenes que correspondan a la materia y al grado del usuario,
+            // incluyendo el estado del examen para el estudiante autenticado
             $examenes = Examen::where('materia_id', $materiaId)
                 ->whereHas('grados', function ($query) use ($gradoId) {
                     $query->where('grado_id', $gradoId);
-                })->get();
+                })
+                ->with(['estudiantes' => function ($query) use ($user) {
+                    $query->where('estudiante_id', $user->id)
+                          ->select('examen_estudiante.examen_id', 'examen_estudiante.estado as estado_pivote'); // Asignar un alias a estado en la tabla pivote
+                }])
+                ->get();
 
-            // Retornar los exámenes encontrados
+            // Transformar los datos para incluir el estado de cada examen
+            $examenesData = $examenes->map(function ($examen) use ($user) {
+                // Verificar el estado en la tabla pivote (examen_estudiante) si existe
+                $estado = $examen->estudiantes->isNotEmpty()
+                    ? $examen->estudiantes->first()->pivot->estado
+                    : 'pendiente'; // Estado por defecto si no ha iniciado
+
+                return [
+                    'id' => $examen->id,
+                    'titulo' => $examen->titulo,
+                    'descripcion' => $examen->descripcion,
+                    'fecha_limite' => $examen->fecha_limite,
+                    'estado_examen' => $examen->estado, // Estado de la tabla examen
+                    'estado_estudiante' => $estado,     // Estado de la tabla pivote para el estudiante
+                ];
+            });
+
+            // Retornar los exámenes encontrados con su estado
             return response()->json([
                 'status' => 1,
                 'msg' => 'Exámenes recuperados con éxito.',
-                'data' => $examenes,
+                'data' => $examenesData,
             ], 200);
 
         } catch (\Exception $e) {
@@ -160,6 +183,7 @@ class ExamenController extends Controller
             ], 500);
         }
     }
+
 
     public function obtener_examen_con_preguntas_y_opciones($examenId)
     {
@@ -222,13 +246,13 @@ class ExamenController extends Controller
         }
     }
 
-
     public function obtener_pregunta($examenId, $preguntaIndex) {
         $pregunta = Pregunta::where('examen_id', $examenId)
                             ->orderBy('id') // Asegúrate de tener un orden correcto
                             ->skip($preguntaIndex)
                             ->take(1)
                             ->with('opciones') // Cargar las opciones de la pregunta
+                            ->with('imagenes')
                             ->first();
 
         if ($pregunta) {
@@ -263,6 +287,43 @@ class ExamenController extends Controller
             'msg' => 'Pregunta no encontrada',
             'data' => [],
         ], 404);
+    }
+
+    public function iniciar_examen($examenId, $estudianteId)
+    {
+        // Buscar el examen por su ID
+        $examen = Examen::findOrFail($examenId);
+
+        // Verificar si el estudiante ya ha iniciado o completado el examen
+        $registro = $examen->estudiantes()->where('estudiante_id', $estudianteId)->first();
+
+        if ($registro) {
+            if ($registro->pivot->estado == 'completado') {
+                return response()->json([
+                    'status' => 1,
+                    'msg' => 'Este examen ya ha sido completado.',
+                ], 400);
+            }
+            if ($registro->pivot->estado == 'en proceso') {
+                return response()->json([
+                    'status' => 1,
+                    'msg' => 'Este examen está en proceso.',
+                ], 200);
+            }
+        }
+
+        // Registrar el inicio del examen en la tabla pivote
+        $examen->estudiantes()->attach($estudianteId, [
+            'estado' => 'en proceso',
+        ]);
+
+        return response()->json(['mensaje' => 'Examen iniciado exitosamente.'], 200);
+
+        return response()->json([
+            'status' => 1,
+            'msg' => 'Examen iniciado exitosamente.',
+        ], 200);
+
     }
 
     // Mostrar el formulario para editar un examen
@@ -479,6 +540,41 @@ class ExamenController extends Controller
                 'error' => $e->getMessage(),
             ], 500);
         }
+    }
+
+    public function enviar_todo_y_terminar(Request $request, $examenId){
+
+        try {
+            // Obtener el usuario autenticado (asumimos que es el estudiante)
+            $user = Auth::user();
+
+            // Buscar el examen
+            $examen = Examen::findOrFail($examenId);
+
+            $puntajeTotal = Respuesta::where('examen_id', $examenId)
+                ->where('estudiante_id', $user->id)
+                ->sum('calificacion');
+
+            // Actualizar los datos en la tabla pivote
+            $examen->estudiantes()->updateExistingPivot($user->id, [
+                'fecha_presentacion' => now(),
+                'puntaje' => $puntajeTotal,
+                'estado' => 'completado',
+            ]);
+
+            return response()->json([
+                'status' => 1,
+                'msg' => 'Examen completado y datos actualizados con éxito.',
+            ], 200);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 0,
+                'msg' => 'Error al completar el examen.',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+
     }
 
 }

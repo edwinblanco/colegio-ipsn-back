@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Opcion;
+use App\Models\Pregunta;
+use App\Models\Respuesta;
 
 class OpcionController extends Controller
 {
@@ -29,22 +31,22 @@ class OpcionController extends Controller
             'exists' => 'El campo :attribute debe ser una pregunta ya creada',
         ]);
 
+
+        $pregunta = Pregunta::where('id', $request->pregunta_id)->first();
+
+        if($pregunta){
+            $respuesta = Respuesta::where('examen_id', $pregunta->examen_id)->first();
+
+            if ($respuesta) {
+                return response()->json([
+                    'status' => 0,
+                    'msg' => 'No puede realizar la acción porque hay estudiantes presentando el examen.',
+                    'data' => [],
+                ], 400);
+            }
+        }
+
         try {
-
-            // Verificar si ya existe una opción correcta para la pregunta
-            /*if ($request->correcta) {
-                $existe_opcion_correcta = Opcion::where('pregunta_id', $request->pregunta_id)
-                    ->where('correcta', true)
-                    ->exists();
-
-                if ($existe_opcion_correcta) {
-                    return response()->json([
-                        'status' => 0,
-                        'msg' => 'Ya se ha cargado una opción correcta para esta pregunta.',
-                        'data' => [],
-                    ], 400);
-                }
-            }*/
 
             if ($request->correcta) {
                 // Verificar si ya existe una opción correcta
@@ -130,6 +132,20 @@ class OpcionController extends Controller
             ], 404);
         }
 
+        $pregunta = Pregunta::where('id', $opcion->pregunta_id)->first();
+
+        if($pregunta){
+            $respuesta = Respuesta::where('examen_id', $pregunta->examen_id)->first();
+
+            if ($respuesta) {
+                return response()->json([
+                    'status' => 0,
+                    'msg' => 'No puede realizar la acción porque hay estudiantes presentando el examen.',
+                    'data' => [],
+                ], 400);
+            }
+        }
+
         $opcion->update($request->all());
 
         return response()->json([
@@ -148,6 +164,20 @@ class OpcionController extends Controller
                 'status' => 0,
                 'msg' => 'Opción no encontrada.',
             ], 404);
+        }
+
+        $pregunta = Pregunta::where('id', $opcion->pregunta_id)->first();
+
+        if($pregunta){
+            $respuesta = Respuesta::where('examen_id', $pregunta->examen_id)->first();
+
+            if ($respuesta) {
+                return response()->json([
+                    'status' => 0,
+                    'msg' => 'No puede realizar la acción porque hay estudiantes presentando el examen.',
+                    'data' => [],
+                ], 400);
+            }
         }
 
         $opcion->delete();

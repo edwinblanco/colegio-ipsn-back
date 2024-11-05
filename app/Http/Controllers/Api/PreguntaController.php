@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\Examen;
 use Illuminate\Http\Request;
 use App\Models\Pregunta;
+use App\Models\ImagenPregunta;
+use App\Models\Respuesta;
 
 class PreguntaController extends Controller
 {
@@ -21,7 +23,7 @@ class PreguntaController extends Controller
 
     public function ver_preguntas_por_examen($examen_id)
     {
-        $preguntas = Pregunta::where('examen_id', $examen_id)->with('opciones')->get();
+        $preguntas = Pregunta::where('examen_id', $examen_id)->with('opciones')->with('imagenes')->get();
 
         $total_valor_preguntas = Pregunta::where('examen_id', $examen_id)->sum('valor');
 
@@ -46,17 +48,29 @@ class PreguntaController extends Controller
             'examen_id' => 'required|exists:examenes,id',
             'contenido' => 'required|string',
             'valor' => 'required|integer',
+            'imagenes.*' => 'image',
         ], [
             'required' => 'El campo :attribute es obligatorio.',
             'exists' => 'El campo :attribute debe ser un examen ya creado',
+            'image' => 'El archivo debe ser una imagen válida.',
         ]);
 
         $examen_id = $request->examen_id;
         $valor = $request->valor;
-
         $porcentaje_restante = 100;
 
         try {
+
+            $respuesta = Respuesta::where('examen_id', $examen_id)->first();
+
+            if ($respuesta) {
+                return response()->json([
+                    'status' => 0,
+                    'msg' => 'No puede realizar la acción porque hay estudiantes presentando el examen.',
+                    'data' => [],
+                ], 400);
+            }
+
             $total_valor_preguntas = Pregunta::where('examen_id', $examen_id)->sum('valor');
             $porcentaje_restante -= $total_valor_preguntas;
 
@@ -68,12 +82,26 @@ class PreguntaController extends Controller
                 ], 400);
             }
 
+            // Crear la pregunta
             $pregunta = Pregunta::create($request->all());
+
+             // Guardar las imágenes
+            if ($request->hasFile('imagenes')) {
+                foreach ($request->imagenes as $imagen) {
+                    $nombreArchivo = uniqid() . '.' . $imagen->getClientOriginalExtension();
+                    $ruta = $imagen->storeAs('imagenes_preguntas', $nombreArchivo, 'public');
+
+                    // Guarda la dirección completa en la base de datos
+                    ImagenPregunta::create([
+                        'id_pregunta' => $pregunta->id,
+                        'url' => 'storage/' . $ruta, // Asumiendo que estás usando el disco 'public'
+                    ]);
+                }
+            }
 
             return response()->json([
                 'status' => 1,
                 'msg' => 'Pregunta creada exitosamente.',
-                'data' => $pregunta,
                 'data' => [
                     'pregunta' => $pregunta,
                     'valor_restante' => $porcentaje_restante - $valor,
@@ -84,7 +112,7 @@ class PreguntaController extends Controller
                 'status' => 0,
                 'msg' => 'Error al crear la pregunta: ' . $e->getMessage(),
                 'data' => [],
-            ], 500); // Código de error interno del servidor
+            ], 500);
         }
     }
 
@@ -124,6 +152,16 @@ class PreguntaController extends Controller
             ], 404);
         }
 
+        $respuesta = Respuesta::where('examen_id', $pregunta->examen_id)->first();
+
+        if ($respuesta) {
+            return response()->json([
+                'status' => 0,
+                'msg' => 'No puede realizar la acción porque hay estudiantes presentando el examen.',
+                'data' => [],
+            ], 400);
+        }
+
         $examen_id = $pregunta->examen_id;
         $valor_actual = $pregunta->valor;
         $valor = $request->valor;
@@ -142,6 +180,20 @@ class PreguntaController extends Controller
 
         $pregunta->update($request->all());
 
+        // Guardar las imágenes
+        if ($request->hasFile('imagenes')) {
+            foreach ($request->imagenes as $imagen) {
+                $nombreArchivo = uniqid() . '.' . $imagen->getClientOriginalExtension();
+                $ruta = $imagen->storeAs('imagenes_preguntas', $nombreArchivo, 'public');
+
+                // Guarda la dirección completa en la base de datos
+                ImagenPregunta::create([
+                    'id_pregunta' => $pregunta->id,
+                    'url' => 'storage/' . $ruta, // Asumiendo que estás usando el disco 'public'
+                ]);
+            }
+        }
+
         return response()->json([
             'status' => 1,
             'msg' => 'Pregunta actualizada exitosamente.',
@@ -158,6 +210,16 @@ class PreguntaController extends Controller
                 'status' => 0,
                 'msg' => 'Pregunta no encontrada.',
             ], 404);
+        }
+
+        $respuesta = Respuesta::where('examen_id', $pregunta->examen_id)->first();
+
+        if ($respuesta) {
+            return response()->json([
+                'status' => 0,
+                'msg' => 'No puede realizar la acción porque hay estudiantes presentando el examen.',
+                'data' => [],
+            ], 400);
         }
 
         $pregunta->delete();

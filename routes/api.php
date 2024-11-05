@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\MateriaController;
 use App\Http\Controllers\Api\OpcionController;
 use App\Http\Controllers\Api\PreguntaController;
 use App\Http\Controllers\Api\GradoController;
+use App\Http\Controllers\Api\ImagenController;
 use App\Http\Controllers\Api\RespuestaController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -49,13 +50,17 @@ Route::group(['middleware' => ["auth:sanctum"]], function(){
     Route::post('actualizar-opcion', [OpcionController::class, 'update'])->middleware('role:profesor');
     Route::delete('eliminar-opcion/{id}', [OpcionController::class, 'destroy'])->middleware('role:profesor');
 
+    Route::delete('eliminar-imagen/{id}', [ImagenController::class, 'destroy'])->middleware('role:profesor');
+
     //Grados
     Route::get('ver-grados', [GradoController::class, 'index'])->middleware('role:profesor');
 
     Route::get('examenes-materia/{materiaId}', [ExamenController::class, 'show'])->middleware('role:profesor,estudiante');
+    Route::get('iniciar-examen/{examenId}/{estudianteId}', [ExamenController::class, 'iniciar_examen'])->middleware('role:estudiante');
     Route::get('examenes-materia-estudiante/{materiaId}', [ExamenController::class, 'ver_examenes_estudiante'])->middleware('role:estudiante');
     Route::get('obtener-examen-preguntas-opciones/{examenId}', [ExamenController::class, 'obtener_examen_con_preguntas_y_opciones'])->middleware('role:estudiante');
     Route::get('obtener-examen-preguntas/{examenId}', [ExamenController::class, 'obtener_examen_con_preguntas'])->middleware('role:estudiante');
+    Route::post('enviar-y-terminar/{examenId}', [ExamenController::class, 'enviar_todo_y_terminar'])->middleware('role:estudiante');
 
     Route::post('guardar-respuesta', [RespuestaController::class, 'guardar_respuesta'])->middleware('role:estudiante');
 });

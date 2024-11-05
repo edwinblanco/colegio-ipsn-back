@@ -45,8 +45,16 @@ class Examen extends Model
 
     public function grados()
     {
-        return $this->belongsToMany(Grado::class, 'examen_grado', 'examen_id', 'grado_id')->withPivot('fecha_asignacion') // Si necesitas acceder a la fecha de asignación
-        ->withTimestamps();;
+        return $this->belongsToMany(Grado::class, 'examen_grado', 'examen_id', 'grado_id')
+                    ->withPivot('fecha_asignacion') // Si necesitas acceder a la fecha de asignación
+                    ->withTimestamps();;
+    }
+
+    public function estudiantes()
+    {
+        return $this->belongsToMany(User::class, 'examen_estudiante', 'examen_id', 'estudiante_id')
+                    ->withPivot('fecha_presentacion', 'puntaje', 'estado')
+                    ->withTimestamps();
     }
 
 }
