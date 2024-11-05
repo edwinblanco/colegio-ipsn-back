@@ -351,17 +351,28 @@ class ExamenController extends Controller
     }
 
     // Actualizar un examen existente
-    public function update(Request $request, Examen $examen)
+    public function update(Request $request)
     {
         try {
             $request->validate([
+                'examen_id' => 'nullable|exists:examenes,id',
                 'materia_id' => 'nullable|exists:materias,id',
                 'profesor_id' => 'nullable|exists:users,id',
                 'titulo' => 'required|string|max:255',
-                'descripcion' => 'required|string',
                 'fecha_limite' => 'required|date',
                 'estado' => 'required|in:activo,cerrado',
             ]);
+
+            $examen = Examen::findOrFail($request->examen_id);
+            $respuesta = Respuesta::where('examen_id', $examen->id)->first();
+
+            if ($respuesta) {
+                return response()->json([
+                    'status' => 0,
+                    'msg' => 'No puede realizar la acción porque hay estudiantes presentando el examen.',
+                    'data' => [],
+                ], 400);
+            }
 
             $examen->update($request->all());
 
@@ -373,29 +384,41 @@ class ExamenController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'status' => 0,
-                'msg' => 'Error al actualizar el examen.',
+                'msg' => 'Error al actualizar el examen: ', $e,
                 'error' => $e->getMessage(),
             ], 500);
         }
     }
 
     // Eliminar un examen
-    public function destroy(Examen $examen)
+    public function destroy($id)
     {
-        try {
-            $examen->delete();
+        $examen = Examen::find($id);
 
-            return response()->json([
-                'status' => 1,
-                'msg' => 'Examen eliminado exitosamente.',
-            ], 200);
-        } catch (\Exception $e) {
+        if (!$examen) {
             return response()->json([
                 'status' => 0,
-                'msg' => 'Error al eliminar el examen.',
-                'error' => $e->getMessage(),
-            ], 500);
+                'msg' => 'Examen no encontrado.',
+            ], 404);
         }
+
+        $respuesta = Respuesta::where('examen_id', $examen->id)->first();
+
+        if ($respuesta) {
+            return response()->json([
+                'status' => 0,
+                'msg' => 'No puede realizar la acción porque hay estudiantes presentando el examen.',
+                'data' => [],
+            ], 400);
+        }
+
+        $examen->delete();
+
+        return response()->json([
+            'status' => 1,
+            'msg' => 'Examen eliminado exitosamente.',
+            'data' => null,
+        ], 200);
     }
 
     public function asignar_examen_a_grado(Request $request)

@@ -36,6 +36,8 @@ Route::group(['middleware' => ["auth:sanctum"]], function(){
 
     // Aplicar el middleware para verificar el rol
     Route::post('crear-examen', [ExamenController::class, 'store'])->middleware('role:profesor');
+    Route::post('editar-examen', [ExamenController::class, 'update'])->middleware('role:profesor');
+    Route::delete('eliminar-examen/{id}', [ExamenController::class, 'destroy'])->middleware('role:profesor');
     Route::get('ver-grado-asignado/{examen_id}', [ExamenController::class, 'grados_asignados'])->middleware('role:profesor');
     Route::post('asignar-examen-grado', [ExamenController::class, 'asignar_examen_a_grado'])->middleware('role:profesor');
     Route::delete('eliminar-asignacion', [ExamenController::class, 'eliminar_asignacion'])->middleware('role:profesor');
