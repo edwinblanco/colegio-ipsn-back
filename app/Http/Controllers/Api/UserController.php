@@ -61,7 +61,7 @@ class UserController extends Controller
             ]);
 
             // Crear un rol
-            $role = Role::create(['name' => 'profesor', 'guard_name' => 'api']);
+            /*$role = Role::create(['name' => 'profesor', 'guard_name' => 'api']);
 
             // Crear un permiso
             $permission = Permission::create(['name' => 'crear examen', 'guard_name' => 'api']);
@@ -69,7 +69,9 @@ class UserController extends Controller
             $role->givePermissionTo($permission);
             $role->givePermissionTo($permission2);
 
-            $user->assignRole($role);
+            $user->assignRole($role);*/
+
+            $user->assignRole('estudiante');
 
             // Respuesta JSON exitosa
             return response()->json([

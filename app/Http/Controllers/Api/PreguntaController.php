@@ -71,6 +71,18 @@ class PreguntaController extends Controller
                 ], 400);
             }
 
+            $examen = Examen::findOrFail($request->examen_id);
+
+            // Verificar si el examen ya tiene un grado asignado
+            if ($examen->grados()->exists()) {
+                // Si el examen ya tiene un grado asignado, impedir la actualización
+                return response()->json([
+                    'status' => 0,
+                    'msg' => 'Este examen ya tiene un grado asignado y no se puede modificar, debe eliminar la asingación.',
+                    'data' => []
+                ], 403); // 403 Forbidden
+            }
+
             $total_valor_preguntas = Pregunta::where('examen_id', $examen_id)->sum('valor');
             $porcentaje_restante -= $total_valor_preguntas;
 
@@ -162,6 +174,18 @@ class PreguntaController extends Controller
             ], 400);
         }
 
+        $examen = Examen::findOrFail($pregunta->examen_id);
+
+        // Verificar si el examen ya tiene un grado asignado
+        if ($examen->grados()->exists()) {
+            // Si el examen ya tiene un grado asignado, impedir la actualización
+            return response()->json([
+                'status' => 0,
+                'msg' => 'Este examen ya tiene un grado asignado y no se puede modificar, debe eliminar la asingación.',
+                'data' => []
+            ], 403); // 403 Forbidden
+        }
+
         $examen_id = $pregunta->examen_id;
         $valor_actual = $pregunta->valor;
         $valor = $request->valor;
@@ -220,6 +244,18 @@ class PreguntaController extends Controller
                 'msg' => 'No puede realizar la acción porque hay estudiantes presentando el examen.',
                 'data' => [],
             ], 400);
+        }
+
+        $examen = Examen::findOrFail($pregunta->examen_id);
+
+        // Verificar si el examen ya tiene un grado asignado
+        if ($examen->grados()->exists()) {
+            // Si el examen ya tiene un grado asignado, impedir la actualización
+            return response()->json([
+                'status' => 0,
+                'msg' => 'Este examen ya tiene un grado asignado y no se puede modificar, debe eliminar la asingación.',
+                'data' => []
+            ], 403); // 403 Forbidden
         }
 
         $pregunta->delete();

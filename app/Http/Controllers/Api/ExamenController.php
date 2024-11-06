@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use App\Models\Pregunta;
 use App\Models\Respuesta;
+use Carbon\Carbon;
 
 class ExamenController extends Controller
 {
@@ -371,7 +372,17 @@ class ExamenController extends Controller
                     'status' => 0,
                     'msg' => 'No puede realizar la acción porque hay estudiantes presentando el examen.',
                     'data' => [],
-                ], 400);
+                ], 403);
+            }
+
+            // Verificar si el examen ya tiene un grado asignado
+            if ($examen->grados()->exists()) {
+                // Si el examen ya tiene un grado asignado, impedir la actualización
+                return response()->json([
+                    'status' => 0,
+                    'msg' => 'Este examen ya tiene un grado asignado y no se puede modificar, debe eliminar la asingación.',
+                    'data' => []
+                ], 403); // 403 Forbidden
             }
 
             $examen->update($request->all());
@@ -410,6 +421,16 @@ class ExamenController extends Controller
                 'msg' => 'No puede realizar la acción porque hay estudiantes presentando el examen.',
                 'data' => [],
             ], 400);
+        }
+
+        // Verificar si el examen ya tiene un grado asignado
+        if ($examen->grados()->exists()) {
+            // Si el examen ya tiene un grado asignado, impedir la actualización
+            return response()->json([
+                'status' => 0,
+                'msg' => 'Este examen ya tiene un grado asignado y no se puede modificar, debe eliminar la asingación.',
+                'data' => []
+            ], 403); // 403 Forbidden
         }
 
         $examen->delete();
@@ -549,6 +570,16 @@ class ExamenController extends Controller
             // Obtener el examen
             $examen = Examen::findOrFail($request->examen_id);
 
+            $respuesta = Respuesta::where('examen_id', $examen->id)->first();
+
+            if ($respuesta) {
+                return response()->json([
+                    'status' => 0,
+                    'msg' => 'No puede realizar la acción porque hay estudiantes presentando el examen.',
+                    'data' => [],
+                ], 400);
+            }
+
             // Eliminar la asignación del examen al grado
             $examen->grados()->detach($request->grado_id);
 
@@ -599,5 +630,72 @@ class ExamenController extends Controller
         }
 
     }
+
+    public function obtenerExamenConEstudiantes($examenId)
+{
+    // Obtiene el ID del profesor autenticado
+    $profesorId = Auth::id();
+
+    // Busca el examen que pertenece al profesor y trae los grados y estudiantes asociados
+    $examen = Examen::with([
+        'grados', // Trae los grados asociados al examen
+        'estudiantes' => function ($query) use ($examenId) {
+            // Filtra los estudiantes relacionados con el examen específico usando el pivot
+            $query->wherePivot('examen_id', $examenId)
+                  ->withPivot('fecha_presentacion', 'puntaje', 'estado'); // Incluye datos de la tabla pivot
+        }
+    ])
+    ->where('id', $examenId)
+    ->where('profesor_id', $profesorId) // Asegura que el examen pertenece al profesor
+    ->first();
+
+    if (!$examen) {
+        return response()->json(['error' => 'Examen no encontrado o no pertenece a este profesor'], 404);
+    }
+
+    // Filtramos los estudiantes que pertenecen a los grados asociados al examen
+    $estudiantesData = $examen->grados->flatMap(function ($grado) use ($examen) {
+        return $grado->estudiantes->map(function ($estudiante) use ($examen) {
+            // Busca el registro del estudiante en la tabla pivote del examen
+            $registroExamen = $examen->estudiantes->firstWhere('id', $estudiante->id);
+            $nota = $registroExamen ? (($registroExamen->pivot->puntaje * 100)/100) : null;
+
+            // Obtén las fechas de fecha_limite y fecha_presentacion
+            $fecha_limite = Carbon::parse($examen->fecha_limite);
+            $fecha_presentacion = $registroExamen && $registroExamen->pivot->fecha_presentacion
+                ? Carbon::parse($registroExamen->pivot->fecha_presentacion)
+                : null;
+
+            // Si el examen no ha sido presentado, la fecha de presentación es null, así que no calculamos la diferencia
+            if ($fecha_presentacion) {
+                // Si se presentó el examen, calcula la diferencia
+                $diferencia = $fecha_limite->diff($fecha_presentacion);
+
+                // Accede a las partes del intervalo
+                $diferencia_fecha = [
+                    'dias' => $diferencia->days,    // Días de diferencia
+                    'horas' => $diferencia->h,      // Horas de diferencia
+                    'minutos' => $diferencia->i     // Minutos de diferencia
+                ];
+            } else {
+                // Si no se ha presentado, la diferencia es null
+                $diferencia_fecha = null;
+            }
+
+            return [
+                'nombre' => $estudiante->primer_nombre.' '.$estudiante->primer_apellido,
+                'fecha_presentacion' => $fecha_presentacion ? $fecha_presentacion->toDateTimeString() : null, // Convierte a string si es necesario
+                'diferencia_fecha' => $diferencia_fecha,
+                'puntaje' => $nota,
+                'estado' => $registroExamen ? $registroExamen->pivot->estado : null,
+            ];
+        });
+    });
+
+    return response()->json([
+        'examen' => $examen,
+        'estudiantes' => $estudiantesData,
+    ]);
+}
 
 }

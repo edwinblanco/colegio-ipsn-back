@@ -183,4 +183,15 @@ return [
 
         'store' => 'default',
     ],
+
+    'guards' => [
+        'web' => [
+            'driver' => 'session',
+            'provider' => 'users',
+        ],
+        'api' => [
+            'driver' => 'passport', // O 'sanctum', dependiendo de tu configuración
+            'provider' => 'users',
+        ],
+    ],
 ];

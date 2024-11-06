@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use App\Models\Opcion;
 use App\Models\Pregunta;
 use App\Models\Respuesta;
+use App\Models\Examen;
 
 class OpcionController extends Controller
 {
@@ -31,7 +32,6 @@ class OpcionController extends Controller
             'exists' => 'El campo :attribute debe ser una pregunta ya creada',
         ]);
 
-
         $pregunta = Pregunta::where('id', $request->pregunta_id)->first();
 
         if($pregunta){
@@ -44,6 +44,18 @@ class OpcionController extends Controller
                     'data' => [],
                 ], 400);
             }
+        }
+
+        $examen = Examen::findOrFail($pregunta->examen_id);
+
+        // Verificar si el examen ya tiene un grado asignado
+        if ($examen->grados()->exists()) {
+            // Si el examen ya tiene un grado asignado, impedir la actualización
+            return response()->json([
+                'status' => 0,
+                'msg' => 'Este examen ya tiene un grado asignado y no se puede modificar, debe eliminar la asingación.',
+                'data' => []
+            ], 403); // 403 Forbidden
         }
 
         try {
@@ -146,6 +158,18 @@ class OpcionController extends Controller
             }
         }
 
+        $examen = Examen::findOrFail($pregunta->examen_id);
+
+        // Verificar si el examen ya tiene un grado asignado
+        if ($examen->grados()->exists()) {
+            // Si el examen ya tiene un grado asignado, impedir la actualización
+            return response()->json([
+                'status' => 0,
+                'msg' => 'Este examen ya tiene un grado asignado y no se puede modificar, debe eliminar la asingación.',
+                'data' => []
+            ], 403); // 403 Forbidden
+        }
+
         $opcion->update($request->all());
 
         return response()->json([
@@ -178,6 +202,18 @@ class OpcionController extends Controller
                     'data' => [],
                 ], 400);
             }
+        }
+
+        $examen = Examen::findOrFail($pregunta->examen_id);
+
+        // Verificar si el examen ya tiene un grado asignado
+        if ($examen->grados()->exists()) {
+            // Si el examen ya tiene un grado asignado, impedir la actualización
+            return response()->json([
+                'status' => 0,
+                'msg' => 'Este examen ya tiene un grado asignado y no se puede modificar, debe eliminar la asingación.',
+                'data' => []
+            ], 403); // 403 Forbidden
         }
 
         $opcion->delete();
