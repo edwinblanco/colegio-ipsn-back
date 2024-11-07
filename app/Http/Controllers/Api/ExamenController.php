@@ -318,8 +318,6 @@ class ExamenController extends Controller
             'estado' => 'en proceso',
         ]);
 
-        return response()->json(['mensaje' => 'Examen iniciado exitosamente.'], 200);
-
         return response()->json([
             'status' => 1,
             'msg' => 'Examen iniciado exitosamente.',
@@ -631,7 +629,7 @@ class ExamenController extends Controller
 
     }
 
-    public function obtenerExamenConEstudiantes($examenId)
+    public function obtener_examen_con_estudiantes($examenId)
     {
         // Obtiene el ID del profesor autenticado
         $profesorId = Auth::id();
@@ -688,6 +686,7 @@ class ExamenController extends Controller
                 }
 
                 return [
+                    'id' => $estudiante->id,
                     'nombre' => $estudiante->primer_nombre.' '.$estudiante->segundo_nombre.' '.$estudiante->primer_apellido.' '.$estudiante->segundo_apellido,
                     'fecha_presentacion' => $fecha_presentacion ? $fecha_presentacion->toDateTimeString() : null,
                     'diferencia_fecha' => $diferencia_fecha,
@@ -701,6 +700,47 @@ class ExamenController extends Controller
         return response()->json([
             'examen' => $examen,
             'estudiantes' => $estudiantesData,
+        ]);
+    }
+
+    public function ver_examen_estudiante($examenId, $estudianteId)
+    {
+        // Cargar el examen con sus preguntas, respuestas y el estudiante que lo presentó
+        $examen = Examen::with([
+            'preguntas.respuestas', // Para obtener todas las respuestas posibles de cada pregunta
+            'estudiantes' => function($query) use ($estudianteId) {
+                // Filtrar por el estudiante que presentó el examen
+                $query->where('estudiante_id', $estudianteId);
+            }
+        ])->findOrFail($examenId);
+
+        // Armar la estructura de datos para cada pregunta con la respuesta correcta y la seleccionada
+        $preguntasConRespuestas = $examen->preguntas->map(function($pregunta) use ($estudianteId) {
+            // Obtener la respuesta correcta
+            $respuestaCorrecta = $pregunta->opciones->where('correcta', true)->first();
+
+            // Obtener la respuesta seleccionada por el estudiante
+            $respuestaSeleccionada = $pregunta->respuestas->where('estudiante_id', $estudianteId)->where('pregunta_id', $pregunta->id)->first();
+            $opcionSeleccionada = $pregunta->opciones->where('id', $respuestaSeleccionada->respuesta_id)->first();
+
+            $acerto = false;
+
+            if($respuestaCorrecta->contenido && $opcionSeleccionada->contenido){
+                $acerto = $respuestaCorrecta->id == $opcionSeleccionada->id;
+            }
+
+            return [
+                'pregunta' => $pregunta->contenido,
+                'valor' => $pregunta->valor,
+                'respuesta_correcta' => $respuestaCorrecta->contenido ?? null,
+                'respuesta_seleccionada' => $opcionSeleccionada->contenido ?? null,
+                'correcta' => $acerto
+            ];
+        });
+
+        return response()->json([
+            'examen' => $examen->titulo,
+            'preguntas' => $preguntasConRespuestas,
         ]);
     }
 

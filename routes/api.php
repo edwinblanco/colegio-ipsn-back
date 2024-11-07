@@ -63,7 +63,8 @@ Route::group(['middleware' => ["auth:sanctum"]], function(){
     Route::get('obtener-examen-preguntas-opciones/{examenId}', [ExamenController::class, 'obtener_examen_con_preguntas_y_opciones'])->middleware('role:estudiante');
     Route::get('obtener-examen-preguntas/{examenId}', [ExamenController::class, 'obtener_examen_con_preguntas'])->middleware('role:estudiante');
     Route::post('enviar-y-terminar/{examenId}', [ExamenController::class, 'enviar_todo_y_terminar'])->middleware('role:estudiante');
-    Route::get('examen-informe-estudiantes/{examenId}', [ExamenController::class, 'obtenerExamenConEstudiantes']);
+    Route::get('examen-informe-estudiantes/{examenId}', [ExamenController::class, 'obtener_examen_con_estudiantes']);
+    Route::get('ver-examen-estudiante/{examenId}/{estudianteId}', [ExamenController::class, 'ver_examen_estudiante']);
 
     Route::post('guardar-respuesta', [RespuestaController::class, 'guardar_respuesta'])->middleware('role:estudiante');
 });
