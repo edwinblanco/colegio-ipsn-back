@@ -204,6 +204,85 @@ class UserController extends Controller
         //
     }
 
+    public function ver_estudiantes(Request $request)
+    {
+        // Obtener los usuarios con el rol 'estudiante' usando Spatie
+        $estudiantes = User::role('estudiante')->with('grado')->get();
+
+        // Verificar si hay estudiantes
+        if ($estudiantes->isEmpty()) {
+            return response()->json([
+                'status' => 0,
+                'msg' => 'No se encontraron estudiantes.',
+                'data' => []
+            ], 404);
+        }
+
+        // Responder con los estudiantes encontrados
+        return response()->json([
+            'status' => 1,
+            'msg' => 'Estudiantes obtenidos exitosamente.',
+            'data' => $estudiantes
+        ], 200);
+    }
+
+    public function registro_estudiante(Request $request): JsonResponse
+    {
+
+        // Validar los datos del request
+        $request->validate([
+            'primer_nombre' => 'required|string|max:15',
+            'segundo_nombre' => 'nullable|string|max:15',
+            'primer_apellido' => 'required|string|max:15',
+            'segundo_apellido' => 'nullable|string|max:15',
+            'numero_documento' => 'required|string|max:30|unique:users',
+            'fecha_nacimiento' => 'required|date',
+            'email' => 'nullable|email|unique:users',
+            'password' => 'required|min:6',
+            'estado' => 'required|in:activo,inactivo,graduado,expulsado',
+            'grado_id' => 'required'
+        ], [
+            'required' => 'El campo :attribute es obligatorio.',
+            'email' => 'El campo :attribute debe ser una dirección de correo válida.',
+            'max' => 'El campo :attribute no debe tener más de :max caracteres.',
+            'min' => 'El campo :attribute debe tener al menos :min caracteres.',
+            'unique' => 'El campo :attribute ya está registrado.',
+            'in' => 'El campo :attribute debe ser uno de los siguientes valores: activo, inactivo, graduado o expulsado.',
+        ]);
+
+        try {
+            // Crear el usuario usando asignación masiva
+            $user = User::create([
+                'primer_nombre' => $request->primer_nombre,
+                'segundo_nombre' => $request->segundo_nombre,
+                'primer_apellido' => $request->primer_apellido,
+                'segundo_apellido' => $request->segundo_apellido,
+                'numero_documento' => $request->numero_documento,
+                'fecha_nacimiento' => $request->fecha_nacimiento,
+                'email' => $request->email,
+                'password' => Hash::make($request->password),
+                'estado' => $request->estado,
+                'grado_id' => $request->grado_id
+            ]);
+
+            $user->assignRole('estudiante');
+
+            // Respuesta JSON exitosa
+            return response()->json([
+                'status' => 1,
+                'msg' => '¡Registro de estudiante exitoso!',
+                'data' => $user,
+            ], 201);
+        } catch (\Exception $e) {
+            // Manejo básico de errores
+            return response()->json([
+                'status' => 0,
+                'msg' => 'Error al registrar el estudiante. Intente nuevamente.',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
     /**
      * Display the specified resource.
      *

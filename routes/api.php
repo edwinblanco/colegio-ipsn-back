@@ -28,8 +28,10 @@ Route::post('login', [UserController::class, 'login']);
 
 Route::group(['middleware' => ["auth:sanctum"]], function(){
     Route::get('perfil-usuario', [UserController::class, 'perfil_usuario']);
+    Route::post('registro-estudiante', [UserController::class, 'registro_estudiante']);
     Route::get('logout', [UserController::class, 'logout']);
     Route::get('validar-token', [UserController::class, 'validar_token']);
+    Route::get('ver-estudiantes', [UserController::class, 'ver_estudiantes'])->middleware('role:profesor,admin');
 
     Route::get('materias', [MateriaController::class, 'index'])->middleware('role:estudiante');
     Route::get('materias-por-profesor/{id}', [MateriaController::class, 'materias_por_profesor'])->middleware('role:profesor');
