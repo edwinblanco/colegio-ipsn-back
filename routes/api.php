@@ -33,9 +33,9 @@ Route::group(['middleware' => ["auth:sanctum"]], function(){
     Route::post('registro-estudiante', [UserController::class, 'registro_estudiante']);
     Route::get('logout', [UserController::class, 'logout']);
     Route::get('validar-token', [UserController::class, 'validar_token']);
-    Route::get('ver-estudiantes', [UserController::class, 'ver_estudiantes'])->middleware('role:profesor,admin');
-    Route::put('actualizar-estudiante/{id}', [UserController::class, 'actualizar_estudiante'])->middleware('role:profesor,admin');
-    Route::delete('eliminar-estudiante/{id}', [UserController::class, 'eliminar_estudiante'])->middleware('role:profesor,admin');
+    Route::get('ver-estudiantes', [UserController::class, 'ver_estudiantes'])->middleware('role:profesor|admin');
+    Route::put('actualizar-estudiante/{id}', [UserController::class, 'actualizar_estudiante'])->middleware('role:profesor|admin');
+    Route::delete('eliminar-estudiante/{id}', [UserController::class, 'eliminar_estudiante'])->middleware('role:profesor|admin');
 
     Route::get('materias', [MateriaController::class, 'index'])->middleware('role:estudiante');
     Route::get('materias-por-profesor/{id}', [MateriaController::class, 'materias_por_profesor'])->middleware('role:profesor');
@@ -61,9 +61,9 @@ Route::group(['middleware' => ["auth:sanctum"]], function(){
     Route::delete('eliminar-imagen/{id}', [ImagenController::class, 'destroy'])->middleware('role:profesor');
 
     //Grados
-    Route::get('ver-grados', [GradoController::class, 'index'])->middleware(middleware: 'role:profesor');
+    Route::get('ver-grados', [GradoController::class, 'index'])->middleware(middleware: 'role:profesor|admin');
     //Sedes
-    Route::get('ver-sedes', [SedeController::class, 'index'])->middleware(middleware: 'role:profesor,admin');
+    Route::get('ver-sedes', [SedeController::class, 'index'])->middleware(middleware: 'role:profesor|admin');
 
     Route::get('examenes-materia/{materiaId}', [ExamenController::class, 'show'])->middleware('role:profesor,estudiante');
     Route::get('iniciar-examen/{examenId}/{estudianteId}', [ExamenController::class, 'iniciar_examen'])->middleware('role:estudiante');

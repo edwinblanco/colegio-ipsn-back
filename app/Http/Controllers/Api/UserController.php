@@ -19,6 +19,15 @@ class UserController extends Controller
         //
     }
 
+    public function ver_roles(Request $request){
+        $roles = Role::all();
+        return response()->json([
+            'status' => 1,
+            'msg' => 'Roles recuperados',
+            'data' => $roles
+        ], 200);
+    }
+
     public function registro(Request $request): JsonResponse
     {
 
