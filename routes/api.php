@@ -11,6 +11,8 @@ use App\Http\Controllers\Api\RespuestaController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\ConfigImagenesPrincipalController;
+use App\Http\Controllers\Api\SedeController;
+
 /*
 |--------------------------------------------------------------------------
 | API Routes
@@ -59,7 +61,9 @@ Route::group(['middleware' => ["auth:sanctum"]], function(){
     Route::delete('eliminar-imagen/{id}', [ImagenController::class, 'destroy'])->middleware('role:profesor');
 
     //Grados
-    Route::get('ver-grados', [GradoController::class, 'index'])->middleware('role:profesor');
+    Route::get('ver-grados', [GradoController::class, 'index'])->middleware(middleware: 'role:profesor');
+    //Sedes
+    Route::get('ver-sedes', [SedeController::class, 'index'])->middleware(middleware: 'role:profesor,admin');
 
     Route::get('examenes-materia/{materiaId}', [ExamenController::class, 'show'])->middleware('role:profesor,estudiante');
     Route::get('iniciar-examen/{examenId}/{estudianteId}', [ExamenController::class, 'iniciar_examen'])->middleware('role:estudiante');

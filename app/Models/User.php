@@ -28,7 +28,8 @@ class User extends Authenticatable
         'email',
         'password',
         'estado',
-        'grado_id'
+        'grado_id',
+        'id_sede'
     ];
 
     protected $hidden = [
@@ -63,6 +64,12 @@ class User extends Authenticatable
     public function grado()
     {
         return $this->belongsTo(Grado::class, 'grado_id');
+    }
+
+    // Relación con sede
+    public function sede()
+    {
+        return $this->belongsTo(Sede::class, 'id_sede');
     }
 
     // relacion con tipo de documento

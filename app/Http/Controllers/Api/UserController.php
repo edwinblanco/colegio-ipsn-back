@@ -177,20 +177,10 @@ class UserController extends Controller
         return response()->json(['error' => 'Token inválido.'], 401);
     }
 
-    public function create()
-    {
-        //
-    }
-
-    public function store(Request $request)
-    {
-        //
-    }
-
     public function ver_estudiantes(Request $request)
     {
         // Obtener los usuarios con el rol 'estudiante' usando Spatie
-        $estudiantes = User::role('estudiante')->with('grado')->get();
+        $estudiantes = User::role('estudiante')->with('grado')->with('sede')->get();
 
         // Verificar si hay estudiantes
         if ($estudiantes->isEmpty()) {
@@ -223,7 +213,8 @@ class UserController extends Controller
             'email' => 'nullable|email|unique:users',
             'password' => 'required|min:6',
             'estado' => 'required|in:activo,inactivo,graduado,expulsado',
-            'grado_id' => 'required'
+            'grado_id' => 'required|exists:grados,id',
+            'sede_id' => 'required|exists:sedes,id'
         ], [
             'required' => 'El campo :attribute es obligatorio.',
             'email' => 'El campo :attribute debe ser una dirección de correo válida.',
@@ -245,7 +236,8 @@ class UserController extends Controller
                 'email' => $request->email,
                 'password' => Hash::make($request->password),
                 'estado' => $request->estado,
-                'grado_id' => $request->grado_id
+                'grado_id' => $request->grado_id,
+                'id_sede' => $request->sede_id
             ]);
 
             $user->assignRole('estudiante');
@@ -279,7 +271,8 @@ class UserController extends Controller
             'email' => 'nullable|email|unique:users,email,' . $id,
             'password' => 'nullable|min:6', // Opcional si no desea cambiar la contraseña
             'estado' => 'required|in:activo,inactivo,graduado,expulsado',
-            'grado_id' => 'required'
+            'grado_id' => 'required|exists:grados,id',
+            'sede_id' => 'required|exists:sedes,id'
         ], [
             'required' => 'El campo :attribute es obligatorio.',
             'email' => 'El campo :attribute debe ser una dirección de correo válida.',
@@ -303,6 +296,7 @@ class UserController extends Controller
             $user->email = $request->email;
             $user->estado = $request->estado;
             $user->grado_id = $request->grado_id;
+            $user->id_sede = $request->sede_id;
 
             // Actualizar la contraseña solo si se proporciona
             if ($request->filled('password')) {

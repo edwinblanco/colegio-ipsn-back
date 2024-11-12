@@ -14,6 +14,7 @@ use Illuminate\Support\Str;
 use App\Models\Pregunta;
 use App\Models\Respuesta;
 use Carbon\Carbon;
+use App\Models\Sede;
 
 class ExamenController extends Controller
 {
@@ -131,6 +132,7 @@ class ExamenController extends Controller
 
             // Obtener el grado del usuario autenticado
             $gradoId = $user->grado ? $user->grado->id : null;
+            $sedeId = $user->sede ? $user->sede->id : null;
 
             // Verificar si el usuario tiene un grado asignado
             if (!$gradoId) {
@@ -143,8 +145,8 @@ class ExamenController extends Controller
             // Obtener exámenes que correspondan a la materia y al grado del usuario,
             // incluyendo el estado del examen para el estudiante autenticado
             $examenes = Examen::where('materia_id', $materiaId)
-                ->whereHas('grados', function ($query) use ($gradoId) {
-                    $query->where('grado_id', $gradoId);
+                ->whereHas('grados', function ($query) use ($gradoId, $sedeId) {
+                    $query->where('grado_id', $gradoId)->where('sede_id', $sedeId);
                 })
                 ->with(['estudiantes' => function ($query) use ($user) {
                     $query->where('estudiante_id', $user->id)
@@ -445,7 +447,8 @@ class ExamenController extends Controller
         // Validación de entrada
         $validator = Validator::make($request->all(), [
             'examen_id' => 'required|exists:examenes,id',
-            'grado_id' => 'required|exists:grados,id'
+            'grado_id' => 'required|exists:grados,id',
+            'sede_id' => 'required|exists:sedes,id'
         ]);
 
         if ($validator->fails()) {
@@ -460,11 +463,14 @@ class ExamenController extends Controller
             // Obtener el examen
             $examen = Examen::with('preguntas.opciones')->findOrFail($request->examen_id);
 
-            // Verificar si el examen ya está asignado al grado
-            if ($examen->grados()->where('grado_id', $request->grado_id)->exists()) {
+            // Verificar si el examen ya está asignado al grado y a la sede
+            if ($examen->grados()
+                    ->where('grado_id', $request->grado_id)
+                    ->wherePivot('sede_id', $request->sede_id)
+                    ->exists()) {
                 return response()->json([
                     'status' => 0,
-                    'msg' => 'El examen ya está asignado a este grado.',
+                    'msg' => 'El examen ya está asignado a este grado y sede.',
                 ], 409); // Conflict
             }
 
@@ -503,12 +509,15 @@ class ExamenController extends Controller
                 }
             }
 
-            // Asignar el examen al grado
-            $examen->grados()->attach($request->grado_id, ['fecha_asignacion' => now()]);
+            // Asignar el examen al grado y a la sede
+            $examen->grados()->attach($request->grado_id, [
+                'fecha_asignacion' => now(),
+                'sede_id' => $request->sede_id, // Agregar sede_id
+            ]);
 
             return response()->json([
                 'status' => 1,
-                'msg' => 'Examen asignado al grado exitosamente.',
+                'msg' => 'Examen asignado al grado y sede exitosamente.',
                 'data' => $examen,
             ], 200);
         } catch (\Exception $e) {
@@ -530,21 +539,31 @@ class ExamenController extends Controller
                 'msg' => 'Examen no encontrado.',
             ], 404);
         }
-
-        // Obtener los grados asignados al examen
-        $grados = $examen->grados; // Asegúrate de tener la relación definida en el modelo Examen
-
+    
+        // Obtener los grados asignados al examen, incluyendo la sede
+        $grados = $examen->grados()->withPivot('sede_id', 'fecha_asignacion')->get();
+    
         if ($grados->isEmpty()) {
             return response()->json([
                 'status' => 0,
                 'msg' => 'No hay grados asignados a este examen.',
             ], 200);
         }
-
+    
+        // Formatear la respuesta con la información de los grados y sedes
+        $data = $grados->map(function ($grado) {
+            return [
+                'grado_id' => $grado->id,
+                'nombre_grado' => $grado->grado.'° - '.$grado->salon,
+                'fecha_asignacion' => $grado->pivot->fecha_asignacion,
+                'sede' => $grado->pivot->sede_id ? Sede::find($grado->pivot->sede_id) : null,
+            ];
+        });
+    
         return response()->json([
             'status' => 1,
             'msg' => 'Grados encontrados para el examen.',
-            'data' => $grados,
+            'data' => $data,
         ], 200);
     }
 
