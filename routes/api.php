@@ -10,7 +10,7 @@ use App\Http\Controllers\Api\ImagenController;
 use App\Http\Controllers\Api\RespuestaController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
-
+use App\Http\Controllers\Api\ConfigImagenesPrincipalController;
 /*
 |--------------------------------------------------------------------------
 | API Routes
@@ -32,6 +32,8 @@ Route::group(['middleware' => ["auth:sanctum"]], function(){
     Route::get('logout', [UserController::class, 'logout']);
     Route::get('validar-token', [UserController::class, 'validar_token']);
     Route::get('ver-estudiantes', [UserController::class, 'ver_estudiantes'])->middleware('role:profesor,admin');
+    Route::put('actualizar-estudiante/{id}', [UserController::class, 'actualizar_estudiante'])->middleware('role:profesor,admin');
+    Route::delete('eliminar-estudiante/{id}', [UserController::class, 'eliminar_estudiante'])->middleware('role:profesor,admin');
 
     Route::get('materias', [MateriaController::class, 'index'])->middleware('role:estudiante');
     Route::get('materias-por-profesor/{id}', [MateriaController::class, 'materias_por_profesor'])->middleware('role:profesor');
@@ -69,7 +71,11 @@ Route::group(['middleware' => ["auth:sanctum"]], function(){
     Route::get('ver-examen-estudiante/{examenId}/{estudianteId}', [ExamenController::class, 'ver_examen_estudiante']);
 
     Route::post('guardar-respuesta', [RespuestaController::class, 'guardar_respuesta'])->middleware('role:estudiante');
+
 });
+
+//CONFIGURACION
+Route::apiResource('config-imagenes-principal', ConfigImagenesPrincipalController::class);
 
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();

@@ -13,11 +13,7 @@ use Spatie\Permission\Models\Permission;
 
 class UserController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     *
-     * @return \Illuminate\Http\Response
-     */
+
     public function index()
     {
         //
@@ -61,7 +57,7 @@ class UserController extends Controller
             ]);
 
             // Crear un rol
-            /*$role = Role::create(['name' => 'profesor', 'guard_name' => 'api']);
+            /*$role = Role::create(['name' => 'admin', 'guard_name' => 'api']);
 
             // Crear un permiso
             $permission = Permission::create(['name' => 'crear examen', 'guard_name' => 'api']);
@@ -70,8 +66,6 @@ class UserController extends Controller
             $role->givePermissionTo($permission2);
 
             $user->assignRole($role);*/
-
-            $user->assignRole('estudiante');
 
             // Respuesta JSON exitosa
             return response()->json([
@@ -183,22 +177,11 @@ class UserController extends Controller
         return response()->json(['error' => 'Token inválido.'], 401);
     }
 
-    /**
-     * Show the form for creating a new resource.
-     *
-     * @return \Illuminate\Http\Response
-     */
     public function create()
     {
         //
     }
 
-    /**
-     * Store a newly created resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\Response
-     */
     public function store(Request $request)
     {
         //
@@ -283,48 +266,94 @@ class UserController extends Controller
         }
     }
 
-    /**
-     * Display the specified resource.
-     *
-     * @param  int  $id
-     * @return \Illuminate\Http\Response
-     */
-    public function show($id)
+    public function actualizar_estudiante(Request $request, $id): JsonResponse
     {
-        //
+        // Validar los datos del request
+        $request->validate([
+            'primer_nombre' => 'required|string|max:15',
+            'segundo_nombre' => 'nullable|string|max:15',
+            'primer_apellido' => 'required|string|max:15',
+            'segundo_apellido' => 'nullable|string|max:15',
+            'numero_documento' => 'required|string|max:30|unique:users,numero_documento,' . $id,
+            'fecha_nacimiento' => 'required|date',
+            'email' => 'nullable|email|unique:users,email,' . $id,
+            'password' => 'nullable|min:6', // Opcional si no desea cambiar la contraseña
+            'estado' => 'required|in:activo,inactivo,graduado,expulsado',
+            'grado_id' => 'required'
+        ], [
+            'required' => 'El campo :attribute es obligatorio.',
+            'email' => 'El campo :attribute debe ser una dirección de correo válida.',
+            'max' => 'El campo :attribute no debe tener más de :max caracteres.',
+            'min' => 'El campo :attribute debe tener al menos :min caracteres.',
+            'unique' => 'El campo :attribute ya está registrado.',
+            'in' => 'El campo :attribute debe ser uno de los siguientes valores: activo, inactivo, graduado o expulsado.',
+        ]);
+
+        try {
+            // Buscar el usuario por su ID
+            $user = User::findOrFail($id);
+
+            // Actualizar los datos del usuario
+            $user->primer_nombre = $request->primer_nombre;
+            $user->segundo_nombre = $request->segundo_nombre;
+            $user->primer_apellido = $request->primer_apellido;
+            $user->segundo_apellido = $request->segundo_apellido;
+            $user->numero_documento = $request->numero_documento;
+            $user->fecha_nacimiento = $request->fecha_nacimiento;
+            $user->email = $request->email;
+            $user->estado = $request->estado;
+            $user->grado_id = $request->grado_id;
+
+            // Actualizar la contraseña solo si se proporciona
+            if ($request->filled('password')) {
+                $user->password = Hash::make($request->password);
+            }
+
+            // Guardar los cambios en la base de datos
+            $user->save();
+
+            // Respuesta JSON exitosa
+            return response()->json([
+                'status' => 1,
+                'msg' => '¡Actualización de estudiante exitosa!',
+                'data' => $user,
+            ], 200);
+        } catch (\Exception $e) {
+            // Manejo básico de errores
+            return response()->json([
+                'status' => 0,
+                'msg' => 'Error al actualizar el estudiante. Intente nuevamente.',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
     }
 
-    /**
-     * Show the form for editing the specified resource.
-     *
-     * @param  int  $id
-     * @return \Illuminate\Http\Response
-     */
-    public function edit($id)
+    public function eliminar_estudiante($id): JsonResponse
     {
-        //
+        try {
+            // Buscar el usuario por su ID
+            $user = User::findOrFail($id);
+
+            // Eliminar el usuario
+            $user->delete();
+
+            // Respuesta JSON exitosa
+            return response()->json([
+                'status' => 1,
+                'msg' => '¡Estudiante eliminado exitosamente!',
+            ], 200);
+        } catch (\Exception $e) {
+            // Manejo básico de errores
+            return response()->json([
+                'status' => 0,
+                'msg' => 'Error al eliminar el estudiante. Intente nuevamente.',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
     }
 
-    /**
-     * Update the specified resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  int  $id
-     * @return \Illuminate\Http\Response
-     */
-    public function update(Request $request, $id)
-    {
-        //
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     *
-     * @param  int  $id
-     * @return \Illuminate\Http\Response
-     */
     public function destroy($id)
     {
-        //
+
     }
 }
