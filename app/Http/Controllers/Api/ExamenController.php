@@ -187,7 +187,6 @@ class ExamenController extends Controller
         }
     }
 
-
     public function obtener_examen_con_preguntas_y_opciones($examenId)
     {
         try {
