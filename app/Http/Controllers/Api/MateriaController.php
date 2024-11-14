@@ -8,6 +8,8 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
+use function PHPSTORM_META\map;
+
 class MateriaController extends Controller
 {
 
@@ -68,6 +70,19 @@ class MateriaController extends Controller
         ], 200);
     }
 
+
+    public function ver_materias(Request $request)
+    {
+
+        $materias = Materia::all();
+
+        // Respuesta JSON exitosa
+        return response()->json([
+            'status' => 1,
+            'msg' => '¡Materias cargadas!',
+            'data' => $materias,
+        ], 200);
+    }
 
     public function index()
     {

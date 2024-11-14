@@ -30,15 +30,17 @@ Route::post('login', [UserController::class, 'login']);
 
 Route::group(['middleware' => ["auth:sanctum"]], function(){
     Route::get('perfil-usuario', [UserController::class, 'perfil_usuario']);
-    Route::post('registro-estudiante', [UserController::class, 'registro_estudiante']);
+    Route::post('registro-usuario', [UserController::class, 'registro_usuario']);
     Route::get('logout', [UserController::class, 'logout']);
     Route::get('validar-token', [UserController::class, 'validar_token']);
-    Route::get('ver-estudiantes', [UserController::class, 'ver_estudiantes'])->middleware('role:profesor|admin');
-    Route::put('actualizar-estudiante/{id}', [UserController::class, 'actualizar_estudiante'])->middleware('role:profesor|admin');
-    Route::delete('eliminar-estudiante/{id}', [UserController::class, 'eliminar_estudiante'])->middleware('role:profesor|admin');
+    Route::get('ver-usuarios', [UserController::class, 'ver_usuarios'])->middleware('role:profesor|admin');
+    Route::put('actualizar-usuario/{id}', [UserController::class, 'actualizar_usuario'])->middleware('role:profesor|admin');
+    Route::delete('eliminar-usuario/{id}', [UserController::class, 'eliminar_usuario'])->middleware('role:admin');
 
     Route::get('materias', [MateriaController::class, 'index'])->middleware('role:estudiante');
     Route::get('materias-por-profesor/{id}', [MateriaController::class, 'materias_por_profesor'])->middleware('role:profesor');
+    Route::get('ver-materias', [MateriaController::class, 'ver_materias'])->middleware('role:admin');
+
 
     // Aplicar el middleware para verificar el rol
     Route::post('crear-examen', [ExamenController::class, 'store'])->middleware('role:profesor');

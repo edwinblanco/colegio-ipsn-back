@@ -1,13 +1,14 @@
 <?php
 
 namespace App\Http\Controllers\Api;
-
+use Illuminate\Support\Facades\DB;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
+use PhpParser\Node\Stmt\Foreach_;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\Models\Permission;
 
@@ -186,32 +187,61 @@ class UserController extends Controller
         return response()->json(['error' => 'Token inválido.'], 401);
     }
 
-    public function ver_estudiantes(Request $request)
+    public function ver_usuarios(Request $request)
     {
-        // Obtener los usuarios con el rol 'estudiante' usando Spatie
-        $estudiantes = User::role('estudiante')->with('grado')->with('sede')->get();
+        // Obtener los usuarios con los roles, grado, sede y materias
+        $usuarios = User::with('roles', 'grado', 'sede', 'materias')->get();
 
-        // Verificar si hay estudiantes
-        if ($estudiantes->isEmpty()) {
+        // Verificar si hay usuarios
+        if ($usuarios->isEmpty()) {
             return response()->json([
                 'status' => 0,
-                'msg' => 'No se encontraron estudiantes.',
+                'msg' => 'No se encontraron usuarios.',
                 'data' => []
             ], 404);
         }
 
-        // Responder con los estudiantes encontrados
+        // Agregar la clave roles_str a cada usuario, que contenga los roles separados por comas
+        $usuarios = $usuarios->map(function($usuario) {
+            // Obtener los nombres de los roles del usuario y unirlos con una coma
+            $rolesStr = $usuario->roles->pluck('name')->implode(', ');
+
+            // Verificar si el usuario tiene grado
+            if ($usuario->grado) {
+                // Si el grado existe, obtener la unión de dos campos: nombre y descripcion
+                $gradoStr = $usuario->grado->grado . '° - ' . $usuario->grado->salon;
+            } else {
+                // Si no tiene grado, devolver un valor por defecto
+                $gradoStr = '--';
+            }
+
+            if ($usuario->sede) {
+                // Si la sede existe, obtener la unión de dos campos: nombre y descripcion
+                $sedeStr = 'Sede '.$usuario->sede->nombre;
+            } else {
+                // Si no tiene sede, devolver un valor por defecto
+                $sedeStr = '--';
+            }
+
+            // Agregar la nueva clave roles_str al objeto usuario
+            $usuario->roles_str = $rolesStr;
+            $usuario->grado_str = $gradoStr;
+            $usuario->sede_str = $sedeStr;
+
+            return $usuario;
+        });
+
+        // Responder con los usuarios encontrados
         return response()->json([
             'status' => 1,
-            'msg' => 'Estudiantes obtenidos exitosamente.',
-            'data' => $estudiantes
+            'msg' => 'Usuarios obtenidos exitosamente.',
+            'data' => $usuarios
         ], 200);
     }
 
-    public function registro_estudiante(Request $request): JsonResponse
-    {
 
-        // Validar los datos del request
+    public function registro_usuario(Request $request): JsonResponse
+    {
         $request->validate([
             'primer_nombre' => 'required|string|max:15',
             'segundo_nombre' => 'nullable|string|max:15',
@@ -222,16 +252,30 @@ class UserController extends Controller
             'email' => 'nullable|email|unique:users',
             'password' => 'required|min:6',
             'estado' => 'required|in:activo,inactivo,graduado,expulsado',
-            'grado_id' => 'required|exists:grados,id',
-            'sede_id' => 'required|exists:sedes,id'
+            'rol' => 'required|in:estudiante,profesor,admin',
         ], [
             'required' => 'El campo :attribute es obligatorio.',
             'email' => 'El campo :attribute debe ser una dirección de correo válida.',
             'max' => 'El campo :attribute no debe tener más de :max caracteres.',
             'min' => 'El campo :attribute debe tener al menos :min caracteres.',
             'unique' => 'El campo :attribute ya está registrado.',
-            'in' => 'El campo :attribute debe ser uno de los siguientes valores: activo, inactivo, graduado o expulsado.',
+            'in' => 'El campo :attribute debe ser uno de los siguientes valores: estudiante, profesor, administrador',
         ]);
+
+        // Aplicación de la validación condicional
+        if ($request->rol == 'estudiante') {
+            $request->validate([
+                'grado_id' => 'required|exists:grados,id',
+                'sede_id' => 'required|exists:sedes,id',
+            ]);
+        } elseif ($request->rol == 'profesor') {
+            $request->validate([
+                'materias' => 'required|array',
+            ]);
+        }
+
+        // Iniciar la transacción
+        DB::beginTransaction();
 
         try {
             // Crear el usuario usando asignación masiva
@@ -249,27 +293,45 @@ class UserController extends Controller
                 'id_sede' => $request->sede_id
             ]);
 
-            $user->assignRole('estudiante');
+            // Asignar el rol al usuario
+            $user->assignRole($request->rol);
+
+            // Si es profesor, asociar las materias
+            if ($request->rol == 'profesor' && isset($request->materias)) {
+                $materias = [];
+
+                foreach ($request->materias as $materia) {
+                    $materias[] = $materia['materia_id']; // Accede como un array
+                }
+
+                $user->materias()->sync($materias);
+            }
+
+            // Confirmar la transacción
+            DB::commit();
 
             // Respuesta JSON exitosa
             return response()->json([
                 'status' => 1,
-                'msg' => '¡Registro de estudiante exitoso!',
+                'msg' => '¡Registro de usuario exitoso!',
                 'data' => $user,
             ], 201);
         } catch (\Exception $e) {
+            // Si ocurre un error, revertir la transacción
+            DB::rollBack();
+
             // Manejo básico de errores
             return response()->json([
                 'status' => 0,
-                'msg' => 'Error al registrar el estudiante. Intente nuevamente.',
+                'msg' => 'Error al registrar el usuario. Intente nuevamente.',
                 'error' => $e->getMessage(),
             ], 500);
         }
     }
 
-    public function actualizar_estudiante(Request $request, $id): JsonResponse
+    public function actualizar_usuario(Request $request, $id): JsonResponse
     {
-        // Validar los datos del request
+        // Validar los datos generales del request
         $request->validate([
             'primer_nombre' => 'required|string|max:15',
             'segundo_nombre' => 'nullable|string|max:15',
@@ -280,16 +342,30 @@ class UserController extends Controller
             'email' => 'nullable|email|unique:users,email,' . $id,
             'password' => 'nullable|min:6', // Opcional si no desea cambiar la contraseña
             'estado' => 'required|in:activo,inactivo,graduado,expulsado',
-            'grado_id' => 'required|exists:grados,id',
-            'sede_id' => 'required|exists:sedes,id'
+            'rol' => 'required|in:estudiante,profesor,admin',
         ], [
             'required' => 'El campo :attribute es obligatorio.',
             'email' => 'El campo :attribute debe ser una dirección de correo válida.',
             'max' => 'El campo :attribute no debe tener más de :max caracteres.',
             'min' => 'El campo :attribute debe tener al menos :min caracteres.',
             'unique' => 'El campo :attribute ya está registrado.',
-            'in' => 'El campo :attribute debe ser uno de los siguientes valores: activo, inactivo, graduado o expulsado.',
+            'in' => 'El campo :attribute debe ser uno de los siguientes valores: estudiante, profesor, administrador.',
         ]);
+
+        // Validación condicional basada en el rol
+        if ($request->rol == 'estudiante') {
+            $request->validate([
+                'grado_id' => 'required|exists:grados,id',
+                'sede_id' => 'required|exists:sedes,id',
+            ]);
+        } elseif ($request->rol == 'profesor') {
+            $request->validate([
+                'materias' => 'required|array',
+            ]);
+        }
+
+        // Iniciar la transacción
+        DB::beginTransaction();
 
         try {
             // Buscar el usuario por su ID
@@ -304,8 +380,25 @@ class UserController extends Controller
             $user->fecha_nacimiento = $request->fecha_nacimiento;
             $user->email = $request->email;
             $user->estado = $request->estado;
-            $user->grado_id = $request->grado_id;
-            $user->id_sede = $request->sede_id;
+
+            // Validar los campos de grado y sede si el rol es estudiante
+            if ($request->rol == 'estudiante') {
+                $user->grado_id = $request->grado_id;
+                $user->id_sede = $request->sede_id;
+            }
+
+            // Si el rol es profesor, asociar las materias
+            if ($request->rol == 'profesor' && isset($request->materias)) {
+
+                $materias = [];
+
+                foreach ($request->materias as $materia) {
+                    $materias[] = $materia['materia_id']; // Accede como un array
+                }
+
+                $user->materias()->sync($materias);
+
+            }
 
             // Actualizar la contraseña solo si se proporciona
             if ($request->filled('password')) {
@@ -315,23 +408,32 @@ class UserController extends Controller
             // Guardar los cambios en la base de datos
             $user->save();
 
+            // Asignar el nuevo rol
+            $user->syncRoles($request->rol);
+
+            // Confirmar la transacción
+            DB::commit();
+
             // Respuesta JSON exitosa
             return response()->json([
                 'status' => 1,
-                'msg' => '¡Actualización de estudiante exitosa!',
+                'msg' => '¡Actualización de usuario exitosa!',
                 'data' => $user,
             ], 200);
         } catch (\Exception $e) {
+            // Si ocurre un error, revertir la transacción
+            DB::rollBack();
+
             // Manejo básico de errores
             return response()->json([
                 'status' => 0,
-                'msg' => 'Error al actualizar el estudiante. Intente nuevamente.',
+                'msg' => 'Error al actualizar el usuario. Intente nuevamente.',
                 'error' => $e->getMessage(),
             ], 500);
         }
     }
 
-    public function eliminar_estudiante($id): JsonResponse
+    public function eliminar_usuario($id): JsonResponse
     {
         try {
             // Buscar el usuario por su ID
@@ -355,8 +457,4 @@ class UserController extends Controller
         }
     }
 
-    public function destroy($id)
-    {
-
-    }
 }
