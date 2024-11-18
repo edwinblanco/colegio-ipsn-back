@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\ConfigBlogBibliotecaController;
 use App\Http\Controllers\Api\ExamenController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\MateriaController;
@@ -14,6 +15,7 @@ use App\Http\Controllers\Api\ConfigImagenesPrincipalController;
 use App\Http\Controllers\Api\SedeController;
 use App\Http\Controllers\Api\ConfigAnuncioController;
 use App\Http\Controllers\Api\ConfigGaleriaController;
+use App\Models\ConfigBlogBiblioteca;
 
 /*
 |--------------------------------------------------------------------------
@@ -87,6 +89,7 @@ Route::group(['middleware' => ["auth:sanctum"]], function(){
     Route::post('guardar-respuesta', [RespuestaController::class, 'guardar_respuesta'])->middleware('role:estudiante');
     Route::post('actualizar-anuncio/{id}', [ConfigAnuncioController::class, 'update'])->middleware('role:admin');
     Route::post('actualizar-galeria/{id}', [ConfigGaleriaController::class, 'update'])->middleware('role:admin');
+    Route::post('actualizar-articulo/{id}', [ConfigBlogBibliotecaController::class, 'update'])->middleware('role:admin');
 
 });
 
@@ -94,6 +97,7 @@ Route::group(['middleware' => ["auth:sanctum"]], function(){
 Route::apiResource('config-imagenes-principal', ConfigImagenesPrincipalController::class);
 Route::apiResource('anuncios', ConfigAnuncioController::class);
 Route::apiResource('galeria', ConfigGaleriaController::class);
+Route::apiResource('articulos', ConfigBlogBibliotecaController::class);
 
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();

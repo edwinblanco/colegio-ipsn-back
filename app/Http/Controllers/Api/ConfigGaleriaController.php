@@ -11,43 +11,26 @@ class ConfigGaleriaController extends Controller
 {
     public function index()
      {
-        $anuncios = ConfigGaleria::all();
-        $data_noticias = ConfigGaleria::where('tipo', 'noticia')
-            ->where('activo', true)
-            ->orderBy('fecha_publicacion', 'desc') // Ordena por fecha_publicacion de forma descendente (más reciente primero)
-            ->get();
-
-        $data_eventos = ConfigGaleria::where('tipo', 'evento')
-            ->where('activo', true)
-            ->orderBy('fecha_publicacion', 'desc') // Ordena por fecha_publicacion de forma descendente (más reciente primero)
-            ->get();
-
-        $data_anuncios = ConfigGaleria::where('tipo', 'anuncio')
-            ->where('activo', true)
-            ->orderBy('fecha_publicacion', 'desc') // Ordena por fecha_publicacion de forma descendente (más reciente primero)
-            ->get();
+        $galeria = ConfigGaleria::all();
 
          return response()->json([
              'status' => 1,
-             'msg' => 'Anuncios cargados correctamente.',
-             'data' => $anuncios,
-             'data_noticias' => $data_noticias,
-             'data_eventos' => $data_eventos,
-             'data_anuncios' => $data_anuncios
+             'msg' => 'Galería cargada correctamente.',
+             'data' => $galeria,
          ], 200);
      }
 
-     // Crear un nuevo anuncio
+     // Crear una nueva galeria
      public function store(Request $request)
      {
          // Validación de los datos
          $validator = Validator::make($request->all(), [
-             'titulo' => 'required|string|max:255|unique:config_anuncios,titulo',
+             'titulo' => 'required|string|max:255|unique:config_galeria,titulo',
              'descripcion' => 'nullable|string',
              'fecha_publicacion' => 'required|date',
              'tipo' => 'required|in:noticia,evento,anuncio',
              'activo' => 'required|boolean',
-             'imagen' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+             'imagen' => 'nullable|image',
          ]);
 
          if ($validator->fails()) {
@@ -64,8 +47,8 @@ class ConfigGaleriaController extends Controller
             $url_imagen = 'storage/' . $ruta;
          }
 
-         // Crear el nuevo anuncio
-         $anuncio = ConfigGaleria::create([
+         // Crear el nueva galeria
+         $galeria = ConfigGaleria::create([
              'titulo' => $request->titulo,
              'descripcion' => $request->descripcion,
              'fecha_publicacion' => $request->fecha_publicacion,
@@ -76,12 +59,12 @@ class ConfigGaleriaController extends Controller
 
          return response()->json([
              'status' => 1,
-             'msg' => '¡Anuncio creado exitosamente!',
-             'data' => $anuncio
+             'msg' => '¡Creado exitosamente!',
+             'data' => $galeria
          ], 201);
      }
 
-     // Mostrar un anuncio específico
+     // Mostrar una galeria específico
      public function show($id)
      {
          $anuncio = ConfigGaleria::find($id);
@@ -89,27 +72,27 @@ class ConfigGaleriaController extends Controller
          if (!$anuncio) {
              return response()->json([
                  'status' => 0,
-                 'msg' => 'Anuncio no encontrado.'
+                 'msg' => 'No encontrado.'
              ], 404);
          }
 
          return response()->json([
              'status' => 1,
-             'msg' => 'Anuncio cargado correctamente.',
+             'msg' => 'Cargado correctamente.',
              'data' => $anuncio
          ], 200);
      }
 
-     // Actualizar un anuncio
+     // Actualizar galeria
      public function update(Request $request, $id)
      {
          $validator = Validator::make($request->all(), [
-             'titulo' => 'required|string|max:255|unique:config_anuncios,titulo,' . $id,
+             'titulo' => 'required|string|max:255|unique:config_galeria,titulo,' . $id,
              'descripcion' => 'nullable|string',
              'fecha_publicacion' => 'required|date',
              'tipo' => 'required|in:noticia,evento,anuncio',
              'activo' => 'required|boolean',
-             'imagen' => 'nullable|image|mimes:jpeg,png,jpg,gif',
+             'imagen' => 'nullable|image',
          ]);
 
          if ($validator->fails()) {
@@ -121,53 +104,53 @@ class ConfigGaleriaController extends Controller
             ], 400);
         }
 
-         $anuncio = ConfigGaleria::find($id);
+        $galeria = ConfigGaleria::find($id);
 
-         if (!$anuncio) {
+         if (!$galeria) {
              return response()->json([
                  'status' => 0,
-                 'msg' => 'Anuncio no encontrado.'
+                 'msg' => 'No encontrado.'
              ], 404);
          }
 
-         $anuncio->titulo = $request->titulo;
-         $anuncio->descripcion = $request->descripcion;
-         $anuncio->fecha_publicacion = $request->fecha_publicacion;
-         $anuncio->tipo = $request->tipo;
-         $anuncio->activo = $request->activo;
+         $galeria->titulo = $request->titulo;
+         $galeria->descripcion = $request->descripcion;
+         $galeria->fecha_publicacion = $request->fecha_publicacion;
+         $galeria->tipo = $request->tipo;
+         $galeria->activo = $request->activo;
 
          if ($request->hasFile('imagen')) {
             $nombreArchivo = uniqid() . '.' . $request->imagen->getClientOriginalExtension();
             $ruta = $request->imagen->storeAs('imagenes_galeria', $nombreArchivo, 'public');
-            $anuncio->url_imagen = 'storage/' . $ruta;
+            $galeria->url_imagen = 'storage/' . $ruta;
          }
 
-         $anuncio->save();
+         $galeria->save();
 
          return response()->json([
              'status' => 1,
-             'msg' => '¡Anuncio actualizado exitosamente!',
-             'data' => $anuncio
+             'msg' => '¡Actualizado exitosamente!',
+             'data' => $galeria
          ], 200);
      }
 
-    // Eliminar un anuncio
+    // Eliminar galeria
     public function destroy($id){
-         $anuncio = ConfigGaleria::find($id);
+         $galeria = ConfigGaleria::find($id);
 
-         if (!$anuncio) {
+         if (!$galeria ) {
              return response()->json([
                  'status' => 0,
-                 'msg' => 'Anuncio no encontrado.'
+                 'msg' => 'No encontrado.'
              ], 404);
          }
 
          // Eliminar el anuncio
-         $anuncio->delete();
+         $galeria ->delete();
 
          return response()->json([
              'status' => 1,
-             'msg' => '¡Anuncio eliminado exitosamente!'
+             'msg' => '¡Eliminado exitosamente!'
          ], 200);
     }
 }
