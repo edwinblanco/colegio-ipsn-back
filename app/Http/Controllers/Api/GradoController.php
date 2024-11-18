@@ -40,9 +40,6 @@ class GradoController extends Controller
         $validator = Validator::make($request->all(), [
             'grado' => 'required|string|max:255',
             'salon' => 'required|integer',
-            'capacidad' => 'required|integer',
-            'profesor_principal' => 'nullable|string|max:255',
-            'notas' => 'nullable|string',
         ]);
 
         if ($validator->fails()) {
@@ -54,6 +51,20 @@ class GradoController extends Controller
         }
 
         try {
+            // Verificar si ya existe un grado con el mismo grado y salón
+            $gradoExistente = Grado::where('grado', $request->grado)
+                ->where('salon', $request->salon)
+                ->first();
+
+            if ($gradoExistente) {
+                return response()->json([
+                    'status' => 0,
+                    'msg' => 'Ya existe un grado con el mismo grado y salón.',
+                    'data' => null,
+                ], 409); // Código de conflicto
+            }
+
+            // Crear el nuevo grado
             $grado = Grado::create($request->all());
 
             return response()->json([
@@ -97,54 +108,7 @@ class GradoController extends Controller
         }
     }
 
-    /**
-     * Actualizar un grado específico.
-     */
-    public function update(Request $request, $id)
-    {
-        // Validación de los datos
-        $validator = Validator::make($request->all(), [
-            'grado' => 'required|string|max:255',
-            'salon' => 'required|integer',
-            'capacidad' => 'required|integer',
-            'profesor_principal' => 'nullable|string|max:255',
-            'notas' => 'nullable|string',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json([
-                'status' => 0,
-                'msg' => 'Errores de validación.',
-                'errors' => $validator->errors(),
-            ], 422);
-        }
-
-        try {
-            $grado = Grado::findOrFail($id);
-            $grado->update($request->all());
-
-            return response()->json([
-                'status' => 1,
-                'msg' => 'Grado actualizado exitosamente.',
-                'data' => $grado,
-            ], 200);
-        } catch (\ModelNotFoundException $e) {
-            return response()->json([
-                'status' => 0,
-                'msg' => 'Grado no encontrado.',
-            ], 404);
-        } catch (\Exception $e) {
-            return response()->json([
-                'status' => 0,
-                'msg' => 'Error al actualizar el grado.',
-                'error' => $e->getMessage(),
-            ], 500);
-        }
-    }
-
-    /**
-     * Eliminar un grado específico.
-     */
+    
     public function destroy($id)
     {
         try {
@@ -197,6 +161,6 @@ class GradoController extends Controller
         ], 200);
     }
 
-    
+
 
 }

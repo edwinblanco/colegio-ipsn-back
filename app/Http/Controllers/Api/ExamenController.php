@@ -93,8 +93,33 @@ class ExamenController extends Controller
     public function show(Request $request, $materiaId)
     {
         try {
-            // Obtener el ID del usuario en sesión utilizando Auth
-            $userId = Auth::id();
+            // Obtener el usuario autenticado
+            $usuarioAutenticado = Auth::user();
+
+            // Verificar si el usuario es administrador
+            if ($usuarioAutenticado->hasRole('admin')) {
+                // Si es administrador, devolver todos los exámenes de la materia
+                $examenes = Examen::where('materia_id', $materiaId)
+                    ->with('materia') // Cargar la relación 'materia'
+                    ->get();
+
+                // Verificar si se encontraron exámenes
+                if ($examenes->isEmpty()) {
+                    return response()->json([
+                        'status' => 0,
+                        'msg' => 'No se encontraron exámenes para esta materia.',
+                    ], 404);
+                }
+
+                return response()->json([
+                    'status' => 1,
+                    'msg' => 'Exámenes recuperados exitosamente (Administrador).',
+                    'data' => $examenes,
+                ], 200);
+            }
+
+            // Si no es administrador, filtrar por el profesor autenticado
+            $userId = $usuarioAutenticado->id;
 
             // Recuperar los exámenes relacionados con la materia y el usuario
             $examenes = Examen::where('materia_id', $materiaId)
@@ -403,6 +428,29 @@ class ExamenController extends Controller
     // Eliminar un examen
     public function destroy($id)
     {
+        // Obtener el usuario autenticado y verificar si es admin
+        $user = Auth::user();
+        if ($user->hasRole('admin')) {
+            // Si es admin, eliminar directamente el examen sin verificaciones
+            $examen = Examen::find($id);
+
+            if (!$examen) {
+                return response()->json([
+                    'status' => 0,
+                    'msg' => 'Examen no encontrado.',
+                ], 404);
+            }
+
+            $examen->delete();
+
+            return response()->json([
+                'status' => 1,
+                'msg' => 'Examen eliminado exitosamente por el administrador.',
+                'data' => null,
+            ], 200);
+        }
+
+        // Lógica estándar para usuarios no administradores
         $examen = Examen::find($id);
 
         if (!$examen) {
@@ -422,12 +470,10 @@ class ExamenController extends Controller
             ], 400);
         }
 
-        // Verificar si el examen ya tiene un grado asignado
         if ($examen->grados()->exists()) {
-            // Si el examen ya tiene un grado asignado, impedir la actualización
             return response()->json([
                 'status' => 0,
-                'msg' => 'Este examen ya tiene un grado asignado y no se puede modificar, debe eliminar la asingación.',
+                'msg' => 'Este examen ya tiene un grado asignado y no se puede modificar, debe eliminar la asignación.',
                 'data' => []
             ], 403); // 403 Forbidden
         }
@@ -538,17 +584,17 @@ class ExamenController extends Controller
                 'msg' => 'Examen no encontrado.',
             ], 404);
         }
-    
+
         // Obtener los grados asignados al examen, incluyendo la sede
         $grados = $examen->grados()->withPivot('sede_id', 'fecha_asignacion')->get();
-    
+
         if ($grados->isEmpty()) {
             return response()->json([
                 'status' => 0,
                 'msg' => 'No hay grados asignados a este examen.',
             ], 200);
         }
-    
+
         // Formatear la respuesta con la información de los grados y sedes
         $data = $grados->map(function ($grado) {
             return [
@@ -558,7 +604,7 @@ class ExamenController extends Controller
                 'sede' => $grado->pivot->sede_id ? Sede::find($grado->pivot->sede_id) : null,
             ];
         });
-    
+
         return response()->json([
             'status' => 1,
             'msg' => 'Grados encontrados para el examen.',
@@ -649,21 +695,26 @@ class ExamenController extends Controller
 
     public function obtener_examen_con_estudiantes($examenId)
     {
-        // Obtiene el ID del profesor autenticado
-        $profesorId = Auth::id();
+        // Obtiene el usuario autenticado
+        $user = Auth::user();
 
-        // Busca el examen que pertenece al profesor y trae los grados y estudiantes asociados
-        $examen = Examen::with([
+        // Construye la consulta base
+        $query = Examen::with([
             'grados', // Trae los grados asociados al examen
             'estudiantes' => function ($query) use ($examenId) {
                 // Filtra los estudiantes relacionados con el examen específico usando el pivot
                 $query->wherePivot('examen_id', $examenId)
                     ->withPivot('fecha_presentacion', 'puntaje', 'estado'); // Incluye datos de la tabla pivot
             }
-        ])
-        ->where('id', $examenId)
-        ->where('profesor_id', $profesorId) // Asegura que el examen pertenece al profesor
-        ->first();
+        ])->where('id', $examenId);
+
+        // Si no es administrador, filtrar por el profesor autenticado
+        if (!$user->hasRole('admin')) {
+            $query->where('profesor_id', $user->id);
+        }
+
+        // Recupera el examen
+        $examen = $query->first();
 
         if (!$examen) {
             return response()->json(['error' => 'Examen no encontrado o no pertenece a este profesor'], 404);
@@ -674,7 +725,7 @@ class ExamenController extends Controller
             return $grado->estudiantes->map(function ($estudiante) use ($examen) {
                 // Busca el registro del estudiante en la tabla pivote del examen
                 $registroExamen = $examen->estudiantes->firstWhere('id', $estudiante->id);
-                $nota = $registroExamen ? (($registroExamen->pivot->puntaje * 100)/100) : null;
+                $nota = $registroExamen ? (($registroExamen->pivot->puntaje * 100) / 100) : null;
 
                 // Obtén las fechas de fecha_limite y fecha_presentacion
                 $fecha_limite = Carbon::parse($examen->fecha_limite);
@@ -705,7 +756,7 @@ class ExamenController extends Controller
 
                 return [
                     'id' => $estudiante->id,
-                    'nombre' => $estudiante->primer_nombre.' '.$estudiante->segundo_nombre.' '.$estudiante->primer_apellido.' '.$estudiante->segundo_apellido,
+                    'nombre' => $estudiante->primer_nombre . ' ' . $estudiante->segundo_nombre . ' ' . $estudiante->primer_apellido . ' ' . $estudiante->segundo_apellido,
                     'fecha_presentacion' => $fecha_presentacion ? $fecha_presentacion->toDateTimeString() : null,
                     'diferencia_fecha' => $diferencia_fecha,
                     'estado_entrega' => $estado_entrega,

@@ -32,6 +32,18 @@ class MateriaController extends Controller
             ], 400);
         }
 
+        // Verificar si el usuario autenticado es administrador
+        $usuarioAutenticado = auth()->user();
+        if ($usuarioAutenticado->hasRole('admin')) {
+            // Retornar todas las materias para el administrador
+            $materias = Materia::all(); // Ajusta según el modelo de materias
+            return response()->json([
+                'status' => 1,
+                'msg' => '¡Todas las materias cargadas!',
+                'data' => $materias,
+            ], 200);
+        }
+
         // Intentar obtener el profesor junto con sus materias
         $profesor = User::with('materias')->find($id);
 
@@ -70,7 +82,6 @@ class MateriaController extends Controller
         ], 200);
     }
 
-
     public function ver_materias(Request $request)
     {
 
@@ -96,70 +107,70 @@ class MateriaController extends Controller
             'data' => $materias
         ], 200);
     }
-
-    /**
-     * Show the form for creating a new resource.
-     *
-     * @return \Illuminate\Http\Response
-     */
-    public function create()
-    {
-        //
-    }
-
-    /**
-     * Store a newly created resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\Response
-     */
+    // Método para crear una nueva materia
     public function store(Request $request)
     {
-        //
+        // Eliminar espacios en blanco y convertir el nombre a minúsculas
+        $nombre = strtolower(trim($request->nombre));
+
+        // Validación de los datos
+        $validator = Validator::make($request->all(), [
+            'nombre' => 'required|string|max:255',
+            'descripcion' => 'nullable|string'
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'status' => 0,
+                'msg' => 'Datos inválidos',
+                'errors' => $validator->errors()
+            ], 400);
+        }
+
+        // Verificar si el nombre ya existe en la base de datos de manera insensible a mayúsculas/minúsculas
+        $existingMateria = Materia::whereRaw('LOWER(nombre) = ?', [$nombre])->first();
+
+        if ($existingMateria) {
+            return response()->json([
+                'status' => 0,
+                'msg' => 'El nombre de la materia ya está registrado.',
+            ], 400);
+        }
+
+        // Crear la nueva materia
+        $materia = new Materia();
+        $materia->nombre = $nombre;  // Guardar el nombre en minúsculas y sin espacios
+        $materia->descripcion = $request->descripcion;
+        $materia->save();
+
+        // Respuesta JSON exitosa
+        return response()->json([
+            'status' => 1,
+            'msg' => '¡Materia creada exitosamente!',
+            'data' => $materia
+        ], 201);
     }
 
-    /**
-     * Display the specified resource.
-     *
-     * @param  int  $id
-     * @return \Illuminate\Http\Response
-     */
-    public function show($id)
-    {
-        //
-    }
-
-    /**
-     * Show the form for editing the specified resource.
-     *
-     * @param  int  $id
-     * @return \Illuminate\Http\Response
-     */
-    public function edit($id)
-    {
-        //
-    }
-
-    /**
-     * Update the specified resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  int  $id
-     * @return \Illuminate\Http\Response
-     */
-    public function update(Request $request, $id)
-    {
-        //
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     *
-     * @param  int  $id
-     * @return \Illuminate\Http\Response
-     */
+    // Método para eliminar una materia
     public function destroy($id)
     {
-        //
+        // Buscar la materia por ID
+        $materia = Materia::find($id);
+
+        if (!$materia) {
+            return response()->json([
+                'status' => 0,
+                'msg' => 'Materia no encontrada',
+            ], 404);
+        }
+
+        // Eliminar la materia
+        $materia->delete();
+
+        // Respuesta JSON exitosa
+        return response()->json([
+            'status' => 1,
+            'msg' => '¡Materia eliminada exitosamente!',
+        ], 200);
     }
 }
